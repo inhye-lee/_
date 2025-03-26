@@ -1,8 +1,10 @@
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
 
+
 let lat = 0, lon = 0, heading = 0;
 let filteredLat = null, filteredLon = null;
+let useFilteredData = true; // Track the gps data source to compare
 
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 let selectedState = "HI"; // default
@@ -135,15 +137,14 @@ function loadPOIData(latitude, longitude, selectedState) {
 }
 
 function updateDisplay() { // This is where AR Screen gets refreshed
-  // Show Both fluctuating GPS & Noise-reduced GPS in debugOverlay on mobile
-  // const displayText = `Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\nHeading: ${heading.toFixed(2)}°`;
+  // Show Both GPS & Noise-reduced GPS in debugOverlay on mobile
   const displayText = `
   Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\nHeading: ${heading.toFixed(2)}°\n\n
   Filtered Lat: ${filteredLat.toFixed(10)}\nFiltered Lng: ${filteredLon.toFixed(10)}`;
-  // infoText.setAttribute("value", displayText);
+  infoText.setAttribute("value", displayText);
 
   // Corrected: Include heading in gps-entity-place
-  // infoText.setAttribute("gps-entity-place", `latitude: ${lat}; longitude: ${lon}; heading: ${heading}`);
+  infoText.setAttribute("gps-entity-place", `latitude: ${lat}; longitude: ${lon}; heading: ${heading}`);
 
   debugOverlay.innerHTML = displayText;
 
@@ -151,20 +152,19 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
 
-  // Load new POI data (Interim function to test)
-  // loadPOIData(filteredLat, filteredLon, selectedState);
-  loadPOIData(lat, lon, selectedState);
+  // Call loadPOIData with the appropriate parameters
+  if (useFilteredData) {
+    loadPOIData(filteredLat, filteredLon, selectedState);
+  } else {
+    loadPOIData(lat, lon, selectedState);
+  }
   console.log(`Updated GPS:
     Lat: ${lat.toFixed(10)}, Lng: ${lon.toFixed(10)}
     Filtered GPS:
     Lat: ${filteredLat.toFixed(10)}, Lng: ${filteredLon.toFixed(10)}`);
 }
 
-//** Noise Reduction 1: Kalman Filters
-const kalmanLat = new KalmanFilter({ R: 0.01, Q: 3 });
-const kalmanLon = new KalmanFilter({ R: 0.01, Q: 3 });
-
-//** Noise Reduction 2: Smooth out the data and reduce the impact
+//** Noise Reduction 1
 // Moving average filter parameters
 const movingAverageWindow = 3; // Store the last 3 latitude and longitude values.
 let latHistory = [];
@@ -173,25 +173,23 @@ let lonHistory = [];
 // Keeping track of previous GPS values
 let previousLat = null;
 let previousLon = null;
-const changeThreshold = 0.00001; // Threshold for significant change in GPS
+const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 approx 11.13 meters)
 
 function updateGPS() { 
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
       (position) => {
-        // GPS Values from GPS Hardware
+        // Values from GPS Hardware
         lat = position.coords.latitude;
         lon = position.coords.longitude; 
-        // updateDisplay();
-        // console.log(`Updated GPS: Lat ${lat}, Lng ${lon}`);
 
-        // Apply Kalman filter to smooth values (Noise Reduction)
-        filteredLat = kalmanLat.filter(lat);
-        filteredLon = kalmanLon.filter(lon);
+        // Values for Noise-Filtered Values
+        filteredLat = lat;
+        filteredLon = lon;
 
         // Round the values to N decimal places 
-        filteredLat = parseFloat(filteredLat.toFixed(10));
-        filteredLon = parseFloat(filteredLon.toFixed(10));
+        filteredLat = parseFloat(filteredLat.toFixed(6));
+        filteredLon = parseFloat(filteredLon.toFixed(6));
 
         // Add to history to keep track of moving average
         latHistory.push(filteredLat);
@@ -219,7 +217,7 @@ function updateGPS() {
         console.error("Geolocation error: ", error);
         debugOverlay.innerHTML = "GPS Error: " + error.message;
       },
-      // timeout: the device has up to 5 seconds to get the GPS position
+      // timeout: the device has up to 5 seconds to get the GPS position , timeout: 5000, maximumAge: 0 
       // maximumAge: No cached positions; always fetch a fresh position from GPS.
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
@@ -668,3 +666,13 @@ window.addEventListener("deviceorientationabsolute", updateHeading, true);
 
 // Start GPS updates
 updateGPS();
+
+// Function to toggle the data source
+function toggleDataSource() {
+  useFilteredData = !useFilteredData;
+  document.getElementById('toggleGPSButton').textContent = useFilteredData ? 'Use Raw GPS' : 'Use Filtered GPS';
+  console.log("useFilteredData: ", useFilteredData);
+}
+
+// Add event listener to the button
+document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
