@@ -1,10 +1,19 @@
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
 
-
 let lat = 0, lon = 0, heading = 0;
 let filteredLat = null, filteredLon = null;
-let useFilteredData = true; // Track the gps data source to compare
+let useFilteredData = true; // Track the gps data source to compare raw & filtered
+
+// Noise Reduction: Moving average filter parameters
+const movingAverageWindow = 3; // Store the last 3 latitude and longitude values.
+let latHistory = [];
+let lonHistory = [];
+
+// Keeping track of previous GPS values
+let previousLat = null;
+let previousLon = null;
+const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
 
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 let selectedState = "HI"; // default
@@ -137,12 +146,12 @@ function loadPOIData(latitude, longitude, selectedState) {
 }
 
 function updateDisplay() { // This is where AR Screen gets refreshed
-  // Show Both GPS & Noise-reduced GPS in debugOverlay on mobile
+  // Show Both Raw GPS & Noise-reduced GPS in debugOverlay
   const displayText = `
   Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\nHeading: ${heading.toFixed(2)}°\n\n
   Filtered Lat: ${filteredLat.toFixed(10)}\nFiltered Lng: ${filteredLon.toFixed(10)}`;
-  infoText.setAttribute("value", displayText);
 
+  infoText.setAttribute("value", displayText);
   // Corrected: Include heading in gps-entity-place
   infoText.setAttribute("gps-entity-place", `latitude: ${lat}; longitude: ${lon}; heading: ${heading}`);
 
@@ -152,7 +161,7 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
 
-  // Call loadPOIData with the appropriate parameters
+  // Call loadPOIData with appropriate parameters
   if (useFilteredData) {
     loadPOIData(filteredLat, filteredLon, selectedState);
   } else {
@@ -163,17 +172,6 @@ function updateDisplay() { // This is where AR Screen gets refreshed
     Filtered GPS:
     Lat: ${filteredLat.toFixed(10)}, Lng: ${filteredLon.toFixed(10)}`);
 }
-
-//** Noise Reduction 1
-// Moving average filter parameters
-const movingAverageWindow = 3; // Store the last 3 latitude and longitude values.
-let latHistory = [];
-let lonHistory = [];
-
-// Keeping track of previous GPS values
-let previousLat = null;
-let previousLon = null;
-const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 approx 11.13 meters)
 
 function updateGPS() { 
   if (navigator.geolocation) {
@@ -203,14 +201,18 @@ function updateGPS() {
         filteredLat = latHistory.reduce((a, b) => a + b, 0) / latHistory.length;
         filteredLon = lonHistory.reduce((a, b) => a + b, 0) / lonHistory.length;
 
-        // UpdateDisplay, if the change exceeds the threshold
-        if (previousLat === null || previousLon === null || 
-            Math.abs(filteredLat - previousLat) > changeThreshold || 
-            Math.abs(filteredLon - previousLon) > changeThreshold) {
+        // Call updateDisplay based on useFilteredData
+        if (!useFilteredData) {
           updateDisplay();
-          previousLat = filteredLat;
-          previousLon = filteredLon;
-          // console.log(`Updated GPS: Lat ${lat}, Lng ${lon}, Filtered GPS:  Lat ${filteredLat}, Lng ${filteredLon}`);
+        } else {
+          // UpdateDisplay, if the change exceeds the threshold
+          if (previousLat === null || previousLon === null || 
+              Math.abs(filteredLat - previousLat) > changeThreshold || 
+              Math.abs(filteredLon - previousLon) > changeThreshold) {
+            updateDisplay();
+            previousLat = filteredLat;
+            previousLon = filteredLon;
+          }
         }
       },
       (error) => {
@@ -219,7 +221,7 @@ function updateGPS() {
       },
       // timeout: the device has up to 5 seconds to get the GPS position , timeout: 5000, maximumAge: 0 
       // maximumAge: No cached positions; always fetch a fresh position from GPS.
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { enableHighAccuracy: true}
     );
   } else {
     console.error("Geolocation not supported.");
