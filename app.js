@@ -5,6 +5,9 @@ let lat = 0, lon = 0, heading = 0;
 let filteredLat = null, filteredLon = null;
 let useFilteredData = true; // Track the gps data source to compare raw & filtered
 
+// Kalman Filters : Noise Reduction
+
+
 // Noise Reduction: Moving average filter parameters
 const movingAverageWindow = 3; // Store the last 3 latitude and longitude values.
 let latHistory = [];
@@ -181,31 +184,19 @@ function updateGPS() {
         lat = position.coords.latitude;
         lon = position.coords.longitude; 
 
-        // Values for Noise-Filtered Values
-        filteredLat = lat;
-        filteredLon = lon;
+        // Initialize Kalman filters for latitude and longitude
+        const kalmanLat = new KalmanFilter({ R: 0.01, Q: 3 });
+        const kalmanLon = new KalmanFilter({ R: 0.01, Q: 3 });
 
-        // Round the values to N decimal places 
-        filteredLat = parseFloat(filteredLat.toFixed(6));
-        filteredLon = parseFloat(filteredLon.toFixed(6));
+        // Apply Kalman filter to the raw GPS values
+        filteredLat = kalmanLat.filter(lat);
+        filteredLon = kalmanLon.filter(lon);
 
-        // Add to history to keep track of moving average
-        latHistory.push(filteredLat);
-        lonHistory.push(filteredLon);
-
-        // Maintain history window size (remove the oldest entry if length > movingAverageWindow)
-        if (latHistory.length > movingAverageWindow) latHistory.shift();
-        if (lonHistory.length > movingAverageWindow) lonHistory.shift();
-
-        // Calculate moving average - sums of the values in array/length
-        filteredLat = latHistory.reduce((a, b) => a + b, 0) / latHistory.length;
-        filteredLon = lonHistory.reduce((a, b) => a + b, 0) / lonHistory.length;
-
-        // Call updateDisplay based on useFilteredData
+        // Call updateDisplay based on useFilteredData boolean
         if (!useFilteredData) {
           updateDisplay();
         } else {
-          // UpdateDisplay, if the change exceeds the threshold
+          // if useFilteredData is true, UpdateDisplay when the change exceeds the threshold
           if (previousLat === null || previousLon === null || 
               Math.abs(filteredLat - previousLat) > changeThreshold || 
               Math.abs(filteredLon - previousLon) > changeThreshold) {
@@ -219,8 +210,6 @@ function updateGPS() {
         console.error("Geolocation error: ", error);
         debugOverlay.innerHTML = "GPS Error: " + error.message;
       },
-      // timeout: the device has up to 5 seconds to get the GPS position , timeout: 5000, maximumAge: 0 
-      // maximumAge: No cached positions; always fetch a fresh position from GPS.
       { enableHighAccuracy: true}
     );
   } else {
@@ -228,6 +217,60 @@ function updateGPS() {
     debugOverlay.innerHTML = "Geolocation not supported.";
   }
 }
+
+// function updateGPS() { 
+//   if (navigator.geolocation) {
+//     navigator.geolocation.watchPosition(
+//       (position) => {
+//         // Values from GPS Hardware
+//         lat = position.coords.latitude;
+//         lon = position.coords.longitude; 
+
+//         // Values for Noise-Filtered Values
+//         filteredLat = lat;
+//         filteredLon = lon;
+
+//         // Round the values to N decimal places 
+//         filteredLat = parseFloat(filteredLat.toFixed(10));
+//         filteredLon = parseFloat(filteredLon.toFixed(10));
+
+//         // Add to history to keep track of moving average
+//         latHistory.push(filteredLat);
+//         lonHistory.push(filteredLon);
+
+//         // Maintain history window size (remove the oldest entry if length > movingAverageWindow)
+//         if (latHistory.length > movingAverageWindow) latHistory.shift();
+//         if (lonHistory.length > movingAverageWindow) lonHistory.shift();
+
+//         // Calculate moving average - sums of the values in array/length
+//         filteredLat = latHistory.reduce((a, b) => a + b, 0) / latHistory.length;
+//         filteredLon = lonHistory.reduce((a, b) => a + b, 0) / lonHistory.length;
+
+//         // Call updateDisplay based on useFilteredData boolean
+//         if (!useFilteredData) {
+//           updateDisplay();
+//         } else {
+//           // if useFilteredData is true, UpdateDisplay if the change exceeds the threshold
+//           if (previousLat === null || previousLon === null || 
+//               Math.abs(filteredLat - previousLat) > changeThreshold || 
+//               Math.abs(filteredLon - previousLon) > changeThreshold) {
+//             updateDisplay();
+//             previousLat = filteredLat;
+//             previousLon = filteredLon;
+//           }
+//         }
+//       },
+//       (error) => {
+//         console.error("Geolocation error: ", error);
+//         debugOverlay.innerHTML = "GPS Error: " + error.message;
+//       },
+//       { enableHighAccuracy: true}
+//     );
+//   } else {
+//     console.error("Geolocation not supported.");
+//     debugOverlay.innerHTML = "Geolocation not supported.";
+//   }
+// }
 
 // function updateGPS() { 
 //   if (navigator.geolocation) {
