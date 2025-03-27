@@ -283,7 +283,7 @@ function enablePanelResizing() {
 
 function initSceneView() {
   require([
-    // "esri/widgets/Track", // Track widget is being deprecated
+    "esri/widgets/Track", // Track widget is being deprecated
     "esri/WebScene",
     "esri/layers/FeatureLayer",
     "esri/views/SceneView",
@@ -291,7 +291,7 @@ function initSceneView() {
     "esri/widgets/Search",
     "esri/widgets/Expand",
   ], (
-    // Track,
+    Track,
     WebScene,
     FeatureLayer,
     SceneView,
@@ -572,15 +572,15 @@ function initSceneView() {
     });
 
     //********************** User Location Tracking (Blue Dot) **********************//
-    // const track = new Track({
-    //   view: view
-    // });
+    const track = new Track({
+      view: view
+    });
 
-    // view.ui.add(track, "top-left");
+    view.ui.add(track, "top-left");
 
-    // view.when(() => {
-    //   track.start();
-    // });
+    view.when(() => {
+      track.start();
+    });
 
     //********************** Travel Between Three Preset Locations **********************//
     const locations = {
