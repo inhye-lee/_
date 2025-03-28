@@ -10,10 +10,10 @@ const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.00
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 let selectedState = "HI"; // default
 
-const symbol_HI = '/labels/Museum.png';
-const symbol_CA = '/labels/Hotel.png';
-const symbol_NY = '/labels/Church.png';
-const symbol_default = '/labels/Park.png';
+const symbol_HI = 'labels/Museum.png';
+const symbol_CA = 'labels/Hotel.png';
+const symbol_NY = 'labels/Church.png';
+const symbol_default = 'labels/Park.png';
 
 // Haversine formula: Calculate distance between two coordinates 
 function calculateDistance(userLat, userLon, poiLat, poiLon) {
