@@ -11,9 +11,9 @@ const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/re
 let selectedState = "HI"; // default
 
 const symbol_HI = 'https://inhye-lee.github.io/_/labels/Museum.png';
-const symbol_CA = '/_/labels/Hotel.png';
-const symbol_NY = 'path/to/labels/Church.png';
-const symbol_default = 'labels/Park.png';
+const symbol_CA = 'https://inhye-lee.github.io/_/labels/Hotel.png';
+const symbol_NY = 'https://inhye-lee.github.io/_/labels/Church.png';
+const symbol_default = 'https://inhye-lee.github.io/_/labels/Park.png';
 
 // Haversine formula: Calculate distance between two coordinates 
 function calculateDistance(userLat, userLon, poiLat, poiLon) {
