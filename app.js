@@ -12,7 +12,7 @@ let previousLat = null, previousLon = null;
 const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
 
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
-let selectedState = "HI"; // default
+let selectedState; // default
 
 const symbol_HI = 'https://inhye-lee.github.io/_/labels/Museum.png';
 const symbol_CA = 'https://inhye-lee.github.io/_/labels/Hotel.png';
@@ -90,6 +90,8 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     default:
       imageSrc = symbol_default;
   }
+
+  console.log("my selectedState in createPOIEntity: " + selectedState );
   
   // Entity
   const entity = document.createElement('a-entity');
@@ -583,8 +585,11 @@ function initSceneView() {
         console.error("Legend container not found.");
       }
       
-      selectedState = stateSelect.value; // Update selectedState global variable from dropDown
+      // selectedState = stateSelect.value; // Update selectedState global variable from dropDown
+      
       function updateStateFilter() {
+        selectedState = stateSelect.value; // Update selectedState global variable from dropDown
+        console.log("selectedState in updateStateFilter", selectedState);
         stateSelect.addEventListener("change", updateStateFilter);
         if (selectedState) {
             pointsLayer.definitionExpression = `STATE = '${selectedState}'`;
@@ -631,33 +636,33 @@ function initSceneView() {
     });
 
     //********************** Travel Between Preset Locations **********************//
-    const locations = {
-      oahu: {
-        center: [-157.8583, 21.3069],
-        state: "HI"
-      },
-      redlands: {
-        center: [-117.1825, 34.0556],
-        state: "CA"
-      },
-      sanMateo: {
-        center: [-122.313044, 37.554286],
-        state: "CA"
-      }
-    };
+    // const locations = {
+    //   oahu: {
+    //     center: [-157.8583, 21.3069],
+    //     state: "HI"
+    //   },
+    //   redlands: {
+    //     center: [-117.1825, 34.0556],
+    //     state: "CA"
+    //   },
+    //   sanMateo: {
+    //     center: [-122.313044, 37.554286],
+    //     state: "CA"
+    //   }
+    // };
     
-    window.goToLocation = function (location) {
-      // Set selectedState based on the clicked location 
-      view.goTo({
-        center: locations[location].center
-      }).catch((error) => {
-        if (error.name !== "AbortError") {
-          console.error(error);
-        }
-      });
-      selectedState = locations[location].state;
-      updateStateFilter();
-    };
+    // window.goToLocation = function (location) {
+    //   // Set selectedState based on the clicked location 
+    //   view.goTo({
+    //     center: locations[location].center
+    //   }).catch((error) => {
+    //     if (error.name !== "AbortError") {
+    //       console.error(error);
+    //     }
+    //   });
+    //   selectedState = locations[location].state;
+    //   updateStateFilter();
+    // };
 
     //********************** Toggle between Bird eye & Top Views  **********************//
     const button = document.getElementById("toggleView");
