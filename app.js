@@ -1,3 +1,7 @@
+const esriConfig = {
+  apiKey: "YOUR_ACCESS_TOKEN" // Temp API Key: Expires May 31 2025
+};
+
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
 
@@ -69,7 +73,7 @@ function updateScale(entity, distance) {
   }
 }
 
-function createPOIEntity(poi, userLatitude, userLongitude, selectedState = "HI") {
+function createPOIEntity(poi, userLatitude, userLongitude) {
   // Label Image
   const image = document.createElement('a-image');
   let imageSrc;
@@ -109,16 +113,10 @@ function createPOIEntity(poi, userLatitude, userLongitude, selectedState = "HI")
   image.setAttribute('src', imageSrc);
   image.setAttribute('width', imageHeight); 
   image.setAttribute('height', imageHeight);
-  image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the circle
+  image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the line
   image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
-  // image.setAttribute('visible', 'false'); // Initially hide the image 
   entity.appendChild(image);
-
-  // Show line & image once image is fully loaded (Fix for white rectangle appearing)
-  // image.addEventListener('materialtextureloaded', () => {
-  //   image.setAttribute('visible', 'true');
-  // });
 
   const text = document.createElement('a-text');
   text.setAttribute('value', poi.name);
@@ -213,6 +211,7 @@ function updateDisplay() { // This is where AR Screen gets refreshed
     Lat: ${lat.toFixed(10)}, Lng: ${lon.toFixed(10)}
     Filtered GPS:
     Lat: ${filteredLat.toFixed(10)}, Lng: ${filteredLon.toFixed(10)}`);
+
 }
 
 function updateGPS() { 
