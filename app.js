@@ -10,6 +10,11 @@ const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.00
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 let selectedState = "HI"; // default
 
+const symbol_HI = '/labels/Museum.png';
+const symbol_CA = '/labels/Hotel.png';
+const symbol_NY = '/labels/Church.png';
+const symbol_default = '/labels/Park.png';
+
 // Haversine formula: Calculate distance between two coordinates 
 function calculateDistance(userLat, userLon, poiLat, poiLon) {
   const R = 6371e3; // Radius of the Earth in meters
@@ -64,22 +69,64 @@ function updateScale(entity, distance) {
   }
 }
 
-// // Create a POI entity
-function createPOIEntity(poi, userLatitude, userLongitude) {
+function createPOIEntity(poi, userLatitude, userLongitude, selectedState = "HI") {
+  // Label Image
+  const image = document.createElement('a-image');
+  let imageSrc;
+  switch (selectedState) {
+    case 'HI':
+      imageSrc = symbol_HI;
+      break;
+    case 'CA':
+      imageSrc = symbol_CA;
+      break;
+    case 'NY':
+      imageSrc = symbol_NY;
+      break;
+    default:
+      imageSrc = symbol_default;
+  }
+  
+  // Entity
   const entity = document.createElement('a-entity');
   entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
   
-  const sphere = document.createElement('a-sphere');
-  sphere.setAttribute('color', 'red');
-  sphere.setAttribute('radius', '1');
-  sphere.setAttribute('material', 'opacity: 0.5');
-  entity.appendChild(sphere);
-  
+  // Height val, offset
+  const imageHeight = 2; 
+  let lineHeight = imageHeight * 2;
+  let imageYOffset = imageHeight / 2;
+
+  // white line 
+  const line = document.createElement('a-plane');
+  line.setAttribute('color', 'white');
+  line.setAttribute('width', 0.1); 
+  line.setAttribute('height', imageHeight * 2); // Length
+  line.setAttribute('position', `0 -${lineHeight / 2} 0`); // anchor is in the center 
+  line.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
+  entity.appendChild(line);
+
+  // image
+  image.setAttribute('src', imageSrc);
+  image.setAttribute('width', imageHeight); 
+  image.setAttribute('height', imageHeight);
+  image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the circle
+  image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
+  image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
+  // image.setAttribute('visible', 'false'); // Initially hide the image 
+  entity.appendChild(image);
+
+  // Show line & image once image is fully loaded (Fix for white rectangle appearing)
+  // image.addEventListener('materialtextureloaded', () => {
+  //   image.setAttribute('visible', 'true');
+  // });
+
   const text = document.createElement('a-text');
   text.setAttribute('value', poi.name);
   text.setAttribute('color', 'black');
-  text.setAttribute('position', '0 1.5 0');
+  text.setAttribute('position', '0 3 0'); // Adjusted position to be above the image
   text.setAttribute('scale', '5 5 5');
+  text.setAttribute('align', 'center'); // Center align the text
+  text.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   entity.appendChild(text);
   
   entity.setAttribute('gps-entity-place', `latitude: ${poi.latitude}; longitude: ${poi.longitude};`);
@@ -90,14 +137,19 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   // Update look-at attribute after entity is added to the scene
   entity.addEventListener('loaded', () => {
     text.setAttribute('look-at', "[gps-camera]");
+    image.setAttribute('look-at', "[gps-camera]");
   });
 
   return entity;
 }
+function adjustTextScale(text, distance) {
+  const baseScale = 5; // Increased base scale for text
+  const scaleFactor = 1 / distance; // Scale factor based on distance
+  text.setAttribute('scale', `${baseScale * scaleFactor} ${baseScale * scaleFactor} ${baseScale * scaleFactor}`);
+}
 
-//  // Query the FeatureLayer based on the selected State (Works on VR. Not on Mobile yet)
-
-function loadPOIData(latitude, longitude, selectedState) {
+//  // Query the FeatureLayer based on the selected State
+function loadPOIData(latitude, longitude) {
   require([
     "esri/layers/FeatureLayer"
   ], function(FeatureLayer) {
@@ -123,9 +175,8 @@ function loadPOIData(latitude, longitude, selectedState) {
 
           // Calculate distance between current location and POI
           const distance = calculateDistance(latitude, longitude, poi.latitude, poi.longitude);
-
-            const poiEntity = createPOIEntity(poi, latitude, longitude);
-            document.querySelector('a-scene').appendChild(poiEntity);
+          const poiEntity = createPOIEntity(poi, latitude, longitude);
+          document.querySelector('a-scene').appendChild(poiEntity);
         });
         
       })
@@ -154,9 +205,9 @@ function updateDisplay() { // This is where AR Screen gets refreshed
 
   // Call loadPOIData with appropriate parameters
   if (useFilteredData) {
-    loadPOIData(filteredLat, filteredLon, selectedState);
+    loadPOIData(filteredLat, filteredLon);
   } else {
-    loadPOIData(lat, lon, selectedState);
+    loadPOIData(lat, lon);
   }
   console.log(`Updated GPS:
     Lat: ${lat.toFixed(10)}, Lng: ${lon.toFixed(10)}
@@ -360,18 +411,18 @@ function initSceneView() {
       uniqueValueInfos: [
         {
           value: "HI",
-          symbol: getUniqueValueSymbol("labels/Museum.png", "#D13470")
+          symbol: getUniqueValueSymbol(symbol_HI , "#D13470")
         },
         {
           value: "CA",
-          symbol: getUniqueValueSymbol("labels/Hotel.png", "#56B2D6")
+          symbol: getUniqueValueSymbol(symbol_CA, "#56B2D6")
         },
         {
           value: "NY",
-          symbol: getUniqueValueSymbol("labels/Church.png", "#884614")
+          symbol: getUniqueValueSymbol(symbol_NY, "#884614")
         }
       ],
-      defaultSymbol: getUniqueValueSymbol("labels/Park.png", "#40C2B4")
+      defaultSymbol: getUniqueValueSymbol(symbol_default, "#40C2B4")
     };
 
     const pointsLayer = new FeatureLayer({
@@ -532,11 +583,10 @@ function initSceneView() {
       } else {
         console.error("Legend container not found.");
       }
-
-      stateSelect.addEventListener("change", updateStateFilter);
-
+      
+      selectedState = stateSelect.value; // Update selectedState global variable from dropDown
       function updateStateFilter() {
-        selectedState = stateSelect.value; // Update selectedState global variable from dropDown
+        stateSelect.addEventListener("change", updateStateFilter);
         if (selectedState) {
             pointsLayer.definitionExpression = `STATE = '${selectedState}'`;
             console.log("Updated US state: " + `${selectedState}`);
@@ -548,15 +598,14 @@ function initSceneView() {
             // Load new POI data based on the selected state
             // Call loadPOIData with appropriate parameters
           if (useFilteredData) {
-            loadPOIData(filteredLat, filteredLon, selectedState);
+            loadPOIData(filteredLat, filteredLon);
           } else {
-            loadPOIData(lat, lon, selectedState);
+            loadPOIData(lat, lon);
           }
         } else {
             console.log("No state selected");
         }
     }
-
       updateStateFilter();
     });
 
@@ -582,20 +631,24 @@ function initSceneView() {
       track.start();
     });
 
-    //********************** Travel Between Three Preset Locations **********************//
+    //********************** Travel Between Preset Locations **********************//
     const locations = {
       oahu: {
-        center: [-157.8583, 21.3069]
+        center: [-157.8583, 21.3069],
+        state: "HI"
       },
       redlands: {
-        center: [-117.1825, 34.0556]
+        center: [-117.1825, 34.0556],
+        state: "CA"
       },
-      brooklyn: {
-        center: [-73.9442, 40.6782]
+      sanMateo: {
+        center: [-122.313044, 37.554286],
+        state: "CA"
       }
     };
-
+    
     window.goToLocation = function (location) {
+      // Set selectedState based on the clicked location 
       view.goTo({
         center: locations[location].center
       }).catch((error) => {
@@ -603,6 +656,8 @@ function initSceneView() {
           console.error(error);
         }
       });
+      selectedState = locations[location].state;
+      updateStateFilter();
     };
 
     //********************** Toggle between Bird eye & Top Views  **********************//
