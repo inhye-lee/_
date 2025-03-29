@@ -1,5 +1,6 @@
+// Temp API Key for Location Services (inc. Geocoding): Expires May 31 2025
 const esriConfig = {
-  apiKey: "YOUR_ACCESS_TOKEN" // Temp API Key: Expires May 31 2025
+  apiKey: "AAPTxy8BH1VEsoebNVZXo8HurLRYsIcdvKKWcuOv2pgkoPa83X5203hTMNmkIserOf2KoTOvhIDCRTfPBVVZFGSqJB38gyWw0suv8ZEot3UdGycvb_MOTYUopiDmL5voe7DPXDb4e4ueUJI0tj2eY0myefU2NosMLnZC_IpblBRwnNE6IS4x0ApqghVfdUisrVA-Fr5U8LOym_Tuh70OdUFVxmCJXXaN4pbEe6VWVpfzZVs.AT1_CiCOhLmU" 
 };
 
 const infoText = document.getElementById("info-text");
@@ -14,6 +15,7 @@ const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.00
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 let selectedState; // default
 
+// Temporarily using an absolute path to get away issues in public repo
 const symbol_HI = 'https://inhye-lee.github.io/_/labels/Museum.png';
 const symbol_CA = 'https://inhye-lee.github.io/_/labels/Hotel.png';
 const symbol_NY = 'https://inhye-lee.github.io/_/labels/Church.png';
@@ -175,8 +177,13 @@ function loadPOIData(latitude, longitude) {
 
           // Calculate distance between current location and POI
           const distance = calculateDistance(latitude, longitude, poi.latitude, poi.longitude);
-          const poiEntity = createPOIEntity(poi, latitude, longitude);
-          document.querySelector('a-scene').appendChild(poiEntity);
+          // Define a threshold distance 
+          const thresholdDistance = 3000; // 3 kilometers
+          // Only draw POIs that are within the threshold distance
+          if (distance <= thresholdDistance) {
+            const poiEntity = createPOIEntity(poi, latitude, longitude);
+            document.querySelector('a-scene').appendChild(poiEntity);
+          }
         });
         
       })
@@ -272,6 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const start = async () => {
     // Enable resizing the bottom panel with touch and drag
     enablePanelResizing();
+
+    updateGPS();
 
     // Initialize the ArcGIS SceneView
     initSceneView();
@@ -635,35 +644,6 @@ function initSceneView() {
       track.start();
     });
 
-    //********************** Travel Between Preset Locations **********************//
-    // const locations = {
-    //   oahu: {
-    //     center: [-157.8583, 21.3069],
-    //     state: "HI"
-    //   },
-    //   redlands: {
-    //     center: [-117.1825, 34.0556],
-    //     state: "CA"
-    //   },
-    //   sanMateo: {
-    //     center: [-122.313044, 37.554286],
-    //     state: "CA"
-    //   }
-    // };
-    
-    // window.goToLocation = function (location) {
-    //   // Set selectedState based on the clicked location 
-    //   view.goTo({
-    //     center: locations[location].center
-    //   }).catch((error) => {
-    //     if (error.name !== "AbortError") {
-    //       console.error(error);
-    //     }
-    //   });
-    //   selectedState = locations[location].state;
-    //   updateStateFilter();
-    // };
-
     //********************** Toggle between Bird eye & Top Views  **********************//
     const button = document.getElementById("toggleView");
     button.addEventListener("click", () => {
@@ -683,9 +663,6 @@ function initSceneView() {
 // Listen for device orientation events (compass)
 window.addEventListener("deviceorientationabsolute", updateHeading, true);
 
-// Start GPS updates
-updateGPS();
-
 // Function to toggle the data source
 function toggleDataSource() {
   useFilteredData = !useFilteredData;
@@ -695,3 +672,6 @@ function toggleDataSource() {
 
 // Add event listener to the button
 document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
+
+// Start GPS updates
+// updateGPS();
