@@ -5,6 +5,7 @@ const esriConfig = {
 
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
+let stateSelect; // Will be created 
 
 let useFilteredData = true; // Track the gps data source to compare raw & filtered
 let lat = 0, lon = 0, heading = 0;
@@ -13,7 +14,8 @@ let previousLat = null, previousLon = null;
 const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
 
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
-let selectedState; // default
+let selectedState; 
+let isDefaultStateSet = false; // To track defaultState... 
 
 // Temporarily using an absolute path to get away issues in public repo
 const symbol_HI = 'https://inhye-lee.github.io/_/labels/Museum.png';
@@ -92,8 +94,6 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     default:
       imageSrc = symbol_default;
   }
-
-  console.log("my selectedState in createPOIEntity: " + selectedState );
   
   // Entity
   const entity = document.createElement('a-entity');
@@ -195,6 +195,12 @@ function loadPOIData(latitude, longitude) {
 }
 
 function updateDisplay() { // This is where AR Screen gets refreshed
+
+  console.log(`Updated GPS:
+    Lat: ${lat.toFixed(10)}, Lng: ${lon.toFixed(10)}
+    Filtered GPS:
+    Lat: ${filteredLat.toFixed(10)}, Lng: ${filteredLon.toFixed(10)}`);
+
   // Display Raw GPS & Noise-reduced GPS in debugOverlay
   const displayText = `
   Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\nHeading: ${heading.toFixed(2)}°\n\n
@@ -216,10 +222,6 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   } else {
     loadPOIData(lat, lon);
   }
-  console.log(`Updated GPS:
-    Lat: ${lat.toFixed(10)}, Lng: ${lon.toFixed(10)}
-    Filtered GPS:
-    Lat: ${filteredLat.toFixed(10)}, Lng: ${filteredLon.toFixed(10)}`);
 
 }
 
@@ -241,12 +243,14 @@ function updateGPS() {
 
         // Call updateDisplay based on useFilteredData boolean
         if (!useFilteredData) {
+          getStateFromCoordinates(lat, lon);
           updateDisplay();
         } else {
           // if useFilteredData is true, UpdateDisplay when the change exceeds the threshold
           if (previousLat === null || previousLon === null || 
               Math.abs(filteredLat - previousLat) > changeThreshold || 
               Math.abs(filteredLon - previousLon) > changeThreshold) {
+            getStateFromCoordinates(filteredLat, filteredLon);
             updateDisplay();
             previousLat = filteredLat;
             previousLon = filteredLon;
@@ -524,9 +528,10 @@ function initSceneView() {
 
     // Add a drop down to filter feature layer by state
     view.when(() => {
-      const stateSelect = document.createElement("select");
+      stateSelect = document.createElement("select");
       stateSelect.id = "stateSelect";
       stateSelect.innerHTML = `
+    <option value ="None">None</option>
     <option value="AL">Alabama</option>
     <option value="AK">Alaska</option>
     <option value="AZ">Arizona</option>
@@ -594,9 +599,10 @@ function initSceneView() {
         console.error("Legend container not found.");
       }
       
-      // selectedState = stateSelect.value; // Update selectedState global variable from dropDown
-      
       function updateStateFilter() {
+        if (!stateSelect.value) {
+
+        }
         selectedState = stateSelect.value; // Update selectedState global variable from dropDown
         console.log("selectedState in updateStateFilter", selectedState);
         stateSelect.addEventListener("change", updateStateFilter);
@@ -621,8 +627,6 @@ function initSceneView() {
     }
       updateStateFilter();
     });
-
-
     
     //********************** Search  **********************//
     const searchWidget = new Search({
@@ -673,5 +677,44 @@ function toggleDataSource() {
 // Add event listener to the button
 document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
 
-// Start GPS updates
+// Get State Info based on User Location
+function getStateFromCoordinates(_lat, _lon) {
+  const url = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode?location=${_lon},${_lat}&f=json&token=${esriConfig.apiKey}`;
+  if (!isDefaultStateSet) {
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        if (data.address && data.address.RegionAbbr) {
+          const us_state = data.address.RegionAbbr; // e.g- Region = "Hawaii", RegionAbbr = "HI"
+          // Set the selectedState based on the US state 
+          setDefaultState(us_state);
+          console.log("getting state from current coords: ", us_state);
+        } else {
+          // If the user is not in any US state, set the selectedState to None
+          setDefaultState("None");
+          console.log("Not getting US state from coords");
+        }
+      })
+      .catch(error => {
+        console.error("Reverse geocoding error: ", error);
+        setDefaultState("None");
+      });
+  }
+}
+// Set the selectedState and update the dropdown 
+function setDefaultState(_state) {
+  const usStates = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"];
+  // Check if the state is a valid US state
+  if (usStates.includes(_state)) {
+    selectedState = _state;
+  } else {
+    selectedState = "None"; // If not in US, set it to None;
+  }
+  stateSelect.value = selectedState; // Set the value in the dropdown;
+  console.log("State info based on my cur loc: ", selectedState);
+  isDefaultStateSet = true; // Set the flag to true once the default state is set so it only happens once
+}
+
+
+// Start GPS updates (Called in DOM)
 // updateGPS();
