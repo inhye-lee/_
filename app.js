@@ -16,6 +16,8 @@ let filteredLat = null, filteredLon = null;
 let previousLat = null, previousLon = null;
 const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
 
+let thresholdDistance = 3000; // Default value (Dynamic via Slider)
+
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 
 // Temporarily using an absolute path to get away issues in public repo
@@ -61,7 +63,7 @@ function calculateDistance(userLat, userLon, poiLat, poiLon) {
 function updateScale(entity, distance) {
   const minScale = 100;
   const maxScale = 300;
-  const thresholdDistance = 3000; // Distance In meters as a threshold
+  // const thresholdDistance = 3000; // Distance In meters as a threshold
 
   if (distance > thresholdDistance) { // If further away;
     // Make it appear as a fixed size yet showing up on a direction relevant to the current user location
@@ -155,7 +157,7 @@ function adjustTextScale(text, distance) {
 function loadPOIData() {
   // Show the loading indicator
   document.getElementById('loadingIndicator').style.display = 'block';
-  
+
   require([
     "esri/layers/FeatureLayer"
   ], function(FeatureLayer) {
@@ -170,37 +172,57 @@ function loadPOIData() {
     const curLat = useFilteredData ? filteredLat : lat;
     const curLon = useFilteredData ? filteredLon : lon;
 
-   // Apply filter by selected state
+    // Apply filter by selected state
     featureLayer.definitionExpression = `STATE = '${selectedState}'`;
 
     featureLayer.queryFeatures()
       .then(function(result) {
         console.log('FeatureLayer data loaded:', result.features); // Debugging log
-        result.features.forEach(function(feature) {
-          const poi = {
-            name: feature.attributes.NAME,
-            latitude: feature.geometry.latitude,
-            longitude: feature.geometry.longitude
-          };
+        const features = result.features;
+        const batchSize = 25; // Number of POIs to process in each batch
+        const interval = 100; // Interval in milliseconds between each batch
+        let index = 0;
+        let poiCount = 0; // Counter for POIs
+        updatePOICounter(poiCount);
 
-          // Calculate distance between current location and POI
-          const distance = calculateDistance(curLat, curLon, poi.latitude, poi.longitude);
-          // Define a threshold distance 
-          const thresholdDistance = 3000; // 3 kilometers
-          // Only draw POIs that are within the threshold distance
-          if (distance <= thresholdDistance) {
-            const poiEntity = createPOIEntity(poi, curLat, curLon);
-            document.querySelector('a-scene').appendChild(poiEntity);
+        const processBatch = () => {
+          while (index < features.length) { // while loop: continuous & iterative processing
+            const batch = features.slice(index, index + batchSize); // by subset
+            batch.forEach(feature => {
+              const poi = {
+                name: feature.attributes.NAME,
+                latitude: feature.geometry.latitude,
+                longitude: feature.geometry.longitude
+              };
+
+              // Calculate distance between current location and POI
+              const distance = calculateDistance(curLat, curLon, poi.latitude, poi.longitude);
+
+              // Only draw POIs that are within the threshold distance
+              if (distance <= thresholdDistance) {
+                const poiEntity = createPOIEntity(poi, curLat, curLon);
+                document.querySelector('a-scene').appendChild(poiEntity);
+                poiCount++; // Increment POI counter
+                updatePOICounter(poiCount);
+              }
+            });
+
+            index += batchSize;
+
+            if (index >= features.length) {
+              document.getElementById('loadingIndicator').style.display = 'none'; // Hide the loading indicator once all data is processed
+              break;
+            }
           }
-        });
-        
-        // Hide the loading indicator once data is loaded
-        document.getElementById('loadingIndicator').style.display = 'none';
+        };
+
+        setTimeout(processBatch, interval); // call to processBatch
 
       })
       .catch(function(error) {
         console.error('Error loading FeatureLayer data:', error); // Debugging log
         document.getElementById("debug-overlay").innerText = "Error loading POI data.";
+        document.getElementById('loadingIndicator').style.display = 'none'; // Hide the loading indicator in case of an error
       });
   });
 }
@@ -283,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enable resizing the bottom panel with touch and drag
     enablePanelResizing();
 
-    updateGPS();
+    // updateGPS();
     // Initialize the ArcGIS SceneView
     initSceneView();
   }
@@ -704,5 +726,19 @@ function toggleDataSource() {
 // Add event listener to the button
 document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
 
+// Add event listener to the slider to update thresholdDistance
+document.getElementById('distanceSlider').addEventListener('input', function(event) {
+  thresholdDistance = event.target.value;
+  updateDistanceValue(thresholdDistance);
+  updateDisplay(); //Update Display with new threshold
+});
+
+function updateDistanceValue(distance) {
+  document.getElementById('distanceValue').textContent = `${distance} m `;
+}
+
+function updatePOICounter(poiCount) {
+  document.getElementById('poi-counter').textContent = `(${poiCount})`;
+}
 // Start GPS updates (Called in DOM)
-// updateGPS();
+updateGPS();
