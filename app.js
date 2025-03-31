@@ -5,7 +5,10 @@ const esriConfig = {
 
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
-let stateSelect; // Will be created 
+let stateSelect; // DOM to be created 
+let isUSStateAssigned = false; // Check if the default US state has been assigned
+let defaultUSState; // default State
+let selectedState; // selected State
 
 let useFilteredData = true; // Track the gps data source to compare raw & filtered
 let lat = 0, lon = 0, heading = 0;
@@ -14,8 +17,6 @@ let previousLat = null, previousLon = null;
 const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
 
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
-let selectedState; 
-let isDefaultStateSet = false; // To track defaultState... 
 
 // Temporarily using an absolute path to get away issues in public repo
 const symbol_HI = 'https://inhye-lee.github.io/_/labels/Museum.png';
@@ -151,7 +152,10 @@ function adjustTextScale(text, distance) {
 }
 
 //  // Query the FeatureLayer based on the selected State
-function loadPOIData(latitude, longitude) {
+function loadPOIData() {
+  // Show the loading indicator
+  document.getElementById('loadingIndicator').style.display = 'block';
+  
   require([
     "esri/layers/FeatureLayer"
   ], function(FeatureLayer) {
@@ -161,6 +165,10 @@ function loadPOIData(latitude, longitude) {
       url: modifiedUrl,
       outFields: ["*"]
     });
+
+    // Assign which lat & lon to use
+    const curLat = useFilteredData ? filteredLat : lat;
+    const curLon = useFilteredData ? filteredLon : lon;
 
    // Apply filter by selected state
     featureLayer.definitionExpression = `STATE = '${selectedState}'`;
@@ -176,16 +184,19 @@ function loadPOIData(latitude, longitude) {
           };
 
           // Calculate distance between current location and POI
-          const distance = calculateDistance(latitude, longitude, poi.latitude, poi.longitude);
+          const distance = calculateDistance(curLat, curLon, poi.latitude, poi.longitude);
           // Define a threshold distance 
           const thresholdDistance = 3000; // 3 kilometers
           // Only draw POIs that are within the threshold distance
           if (distance <= thresholdDistance) {
-            const poiEntity = createPOIEntity(poi, latitude, longitude);
+            const poiEntity = createPOIEntity(poi, curLat, curLon);
             document.querySelector('a-scene').appendChild(poiEntity);
           }
         });
         
+        // Hide the loading indicator once data is loaded
+        document.getElementById('loadingIndicator').style.display = 'none';
+
       })
       .catch(function(error) {
         console.error('Error loading FeatureLayer data:', error); // Debugging log
@@ -195,12 +206,6 @@ function loadPOIData(latitude, longitude) {
 }
 
 function updateDisplay() { // This is where AR Screen gets refreshed
-
-  console.log(`Updated GPS:
-    Lat: ${lat.toFixed(10)}, Lng: ${lon.toFixed(10)}
-    Filtered GPS:
-    Lat: ${filteredLat.toFixed(10)}, Lng: ${filteredLon.toFixed(10)}`);
-
   // Display Raw GPS & Noise-reduced GPS in debugOverlay
   const displayText = `
   Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\nHeading: ${heading.toFixed(2)}°\n\n
@@ -216,11 +221,8 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
 
-  // Call loadPOIData with appropriate parameters
-  if (useFilteredData) {
-    loadPOIData(filteredLat, filteredLon);
-  } else {
-    loadPOIData(lat, lon);
+  if (isUSStateAssigned) { // Prevent not calling the function when there is no default US state 
+    loadPOIData();
   }
 
 }
@@ -243,14 +245,11 @@ function updateGPS() {
 
         // Call updateDisplay based on useFilteredData boolean
         if (!useFilteredData) {
-          getStateFromCoordinates(lat, lon);
           updateDisplay();
-        } else {
-          // if useFilteredData is true, UpdateDisplay when the change exceeds the threshold
+        } else {// if useFilteredData is true, UpdateDisplay when the change exceeds the threshold
           if (previousLat === null || previousLon === null || 
               Math.abs(filteredLat - previousLat) > changeThreshold || 
               Math.abs(filteredLon - previousLon) > changeThreshold) {
-            getStateFromCoordinates(filteredLat, filteredLon);
             updateDisplay();
             previousLat = filteredLat;
             previousLon = filteredLon;
@@ -285,7 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
     enablePanelResizing();
 
     updateGPS();
-
     // Initialize the ArcGIS SceneView
     initSceneView();
   }
@@ -355,6 +353,8 @@ function initSceneView() {
     "esri/widgets/Legend",
     "esri/widgets/Search",
     "esri/widgets/Expand",
+    "esri/rest/locator",
+    "esri/geometry/Point",
   ], (
     Track,
     WebScene,
@@ -363,6 +363,8 @@ function initSceneView() {
     Legend,
     Search,
     Expand,
+    locator,
+    Point
   ) => {
 
     //********************** Set up a Web Scene **********************//
@@ -507,6 +509,70 @@ function initSceneView() {
 
     view.ui.add(document.getElementById("cityStyle"), "bottom-left");
 
+    //********************** User Location Tracking (Blue Dot) **********************//
+    const track = new Track({
+      view: view
+    });
+
+    view.ui.add(track, "top-left");
+
+    view.when(() => {
+      track.start();
+    });
+
+    track.on("track", function(event) {
+      const point = new Point({
+        latitude: event.position.coords.latitude,
+        longitude: event.position.coords.longitude
+      });
+
+      const locatorUrl = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+      
+      // Only assign the US state once
+      if (!isUSStateAssigned) {
+        locator.locationToAddress(locatorUrl, {
+          location: point
+        })
+        .then(function(response) {
+          defaultUSState = response.attributes.RegionAbbr;
+          console.log("US State from Location Tracking:", defaultUSState);
+          
+          if (stateSelect) {
+            stateSelect.value = defaultUSState;
+          }
+
+          // Set the flag to true after assigning the state
+          isUSStateAssigned = true;
+
+           // Call updateStateFilter only after assigning defaultUSState
+           updateStateFilter();
+        })
+        .catch(function(error) {
+          console.error("Error in reverse geocoding:", error);
+        });
+      }
+    });
+
+    //********************** Update State Filter Function **********************//
+    function updateStateFilter() {
+      selectedState = stateSelect.value; // Update selectedState global variable from dropDown
+      console.log("selectedState in updateStateFilter", selectedState);
+      stateSelect.addEventListener("change", updateStateFilter);
+      if (selectedState) {
+          pointsLayer.definitionExpression = `STATE = '${selectedState}'`;
+          console.log("Updated US state: " + `${selectedState}`);
+  
+          // Clear existing POIs
+          const existingPOIs = document.querySelectorAll('[gps-entity-place]');
+          existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
+  
+          // Load new POI data based on the selected state
+          loadPOIData();
+      } else {
+          console.log("No state selected");
+      }
+    } 
+
     //********************** Legend with State Info **********************//
     const legend = new Legend({
       view: view,
@@ -542,7 +608,7 @@ function initSceneView() {
     <option value="DE">Delaware</option>
     <option value="FL">Florida</option>
     <option value="GA">Georgia</option>
-    <option value="HI" selected>Hawaii</option>
+    <option value="HI">Hawaii</option>
     <option value="ID">Idaho</option>
     <option value="IL">Illinois</option>
     <option value="IN">Indiana</option>
@@ -583,7 +649,6 @@ function initSceneView() {
     <option value="WI">Wisconsin</option>
     <option value="WY">Wyoming</option>
   `;
-
       // Create a div
       const filterDiv = document.createElement("div");
       filterDiv.id = "filterDiv";
@@ -599,33 +664,6 @@ function initSceneView() {
         console.error("Legend container not found.");
       }
       
-      function updateStateFilter() {
-        if (!stateSelect.value) {
-
-        }
-        selectedState = stateSelect.value; // Update selectedState global variable from dropDown
-        console.log("selectedState in updateStateFilter", selectedState);
-        stateSelect.addEventListener("change", updateStateFilter);
-        if (selectedState) {
-            pointsLayer.definitionExpression = `STATE = '${selectedState}'`;
-            console.log("Updated US state: " + `${selectedState}`);
-    
-            // Clear existing POIs
-            const existingPOIs = document.querySelectorAll('[gps-entity-place]');
-            existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
-    
-            // Load new POI data based on the selected state
-            // Call loadPOIData with appropriate parameters
-          if (useFilteredData) {
-            loadPOIData(filteredLat, filteredLon);
-          } else {
-            loadPOIData(lat, lon);
-          }
-        } else {
-            console.log("No state selected");
-        }
-    }
-      updateStateFilter();
     });
     
     //********************** Search  **********************//
@@ -635,17 +673,6 @@ function initSceneView() {
 
     view.ui.add(searchWidget, {
       position: "top-right"
-    });
-
-    //********************** User Location Tracking (Blue Dot) **********************//
-    const track = new Track({
-      view: view
-    });
-
-    view.ui.add(track, "top-left");
-
-    view.when(() => {
-      track.start();
     });
 
     //********************** Toggle between Bird eye & Top Views  **********************//
@@ -676,45 +703,6 @@ function toggleDataSource() {
 
 // Add event listener to the button
 document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
-
-// Get State Info based on User Location
-function getStateFromCoordinates(_lat, _lon) {
-  const url = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode?location=${_lon},${_lat}&f=json&token=${esriConfig.apiKey}`;
-  if (!isDefaultStateSet) {
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        if (data.address && data.address.RegionAbbr) {
-          const us_state = data.address.RegionAbbr; // e.g- Region = "Hawaii", RegionAbbr = "HI"
-          // Set the selectedState based on the US state 
-          setDefaultState(us_state);
-          console.log("getting state from current coords: ", us_state);
-        } else {
-          // If the user is not in any US state, set the selectedState to None
-          setDefaultState("None");
-          console.log("Not getting US state from coords");
-        }
-      })
-      .catch(error => {
-        console.error("Reverse geocoding error: ", error);
-        setDefaultState("None");
-      });
-  }
-}
-// Set the selectedState and update the dropdown 
-function setDefaultState(_state) {
-  const usStates = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"];
-  // Check if the state is a valid US state
-  if (usStates.includes(_state)) {
-    selectedState = _state;
-  } else {
-    selectedState = "None"; // If not in US, set it to None;
-  }
-  stateSelect.value = selectedState; // Set the value in the dropdown;
-  console.log("State info based on my cur loc: ", selectedState);
-  isDefaultStateSet = true; // Set the flag to true once the default state is set so it only happens once
-}
-
 
 // Start GPS updates (Called in DOM)
 // updateGPS();
