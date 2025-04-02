@@ -3,6 +3,8 @@ const esriConfig = {
   apiKey: "AAPTxy8BH1VEsoebNVZXo8HurLRYsIcdvKKWcuOv2pgkoPa83X5203hTMNmkIserOf2KoTOvhIDCRTfPBVVZFGSqJB38gyWw0suv8ZEot3UdGycvb_MOTYUopiDmL5voe7DPXDb4e4ueUJI0tj2eY0myefU2NosMLnZC_IpblBRwnNE6IS4x0ApqghVfdUisrVA-Fr5U8LOym_Tuh70OdUFVxmCJXXaN4pbEe6VWVpfzZVs.AT1_CiCOhLmU" 
 };
 
+let view; // Declare globally *Fix for iOS WebScene not responsive to heading change
+
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
 let stateSelect; // DOM to be created 
@@ -11,10 +13,17 @@ let defaultUSState; // default State
 let selectedState; // selected State
 
 let useFilteredData = true; // Track the gps data source to compare raw & filtered
-let lat = 0, lon = 0, heading = 0;
+let lat = 0, lon = 0; 
 let filteredLat = null, filteredLon = null;
 let previousLat = null, previousLon = null;
 const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
+
+//Tracking Compass Heading in updateHeading
+let heading = 0;
+let smoothedHeading = null; // Variable to store the smoothed heading
+const smoothingFactor = 0.2; // Weight given for smoothing (0 < sFactor <= 1). Lower val = mo' smoothing; slower response
+const headingChangeThreshold = 5; // Minimum change in degrees to trigger an update
+let previousHeading = null; // Store the previous heading value
 
 let thresholdDistance = 3000; // Default value (Dynamic via Slider)
 
@@ -63,7 +72,6 @@ function calculateDistance(userLat, userLon, poiLat, poiLon) {
 function updateScale(entity, distance) {
   const minScale = 100;
   const maxScale = 300;
-  // const thresholdDistance = 3000; // Distance In meters as a threshold
 
   if (distance > thresholdDistance) { // If further away;
     // Make it appear as a fixed size yet showing up on a direction relevant to the current user location
@@ -124,6 +132,15 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
   entity.appendChild(image);
+
+  // Replace the image with a sphere (For debugging purposes)
+  // const sphere = document.createElement('a-sphere');
+  // sphere.setAttribute('radius', imageHeight / 2); // Set the radius of the sphere
+  // sphere.setAttribute('position', `0 ${imageYOffset} 0`); // Position the sphere on top of the line
+  // sphere.setAttribute('color', '#FF5733'); // Set the color of the sphere (you can customize this)
+  // sphere.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
+  // sphere.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
+  // entity.appendChild(sphere);
 
   const text = document.createElement('a-text');
   text.setAttribute('value', poi.name);
@@ -229,21 +246,25 @@ function loadPOIData() {
 
 function updateDisplay() { // This is where AR Screen gets refreshed
   // Display Raw GPS & Noise-reduced GPS in debugOverlay
-  const displayText = `
-  Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\nHeading: ${heading.toFixed(2)}°\n\n
-  Filtered Lat: ${filteredLat.toFixed(10)}\nFiltered Lng: ${filteredLon.toFixed(10)}`;
+  //   // Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\n
+  // updateOverlayText();
 
-  infoText.setAttribute("value", displayText);
-  // Corrected: Include heading in gps-entity-place
-  infoText.setAttribute("gps-entity-place", `latitude: ${lat}; longitude: ${lon}; heading: ${heading}`);
+  // const displayText = `
+  // Heading: ${heading.toFixed(2)}°\n\n
+  // Lat: ${filteredLat.toFixed(10)}\nLng: ${filteredLon.toFixed(10)}`;
 
-  debugOverlay.innerHTML = displayText;
+  // infoText.setAttribute("value", displayText);
+  // // Corrected: Include heading in gps-entity-place
+  // infoText.setAttribute("gps-entity-place", `latitude: ${lat}; longitude: ${lon}; heading: ${heading}`);
+
+  // debugOverlay.innerHTML = displayText;
 
   // Clear existing POIs
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
 
-  if (isUSStateAssigned) { // Prevent not calling the function when there is no default US state 
+  if (isUSStateAssigned)  // Prevent not calling the function when there is no default US state 
+    {
     loadPOIData();
   }
 
@@ -290,22 +311,12 @@ function updateGPS() {
   }
 }
 
-function updateHeading(event) {
-  if (event.alpha !== null) {
-    heading = 360 - event.alpha; // Convert to compass heading
-    updateDisplay();
-    console.log(`Updated Heading: ${heading}°`);
-  } else {
-    debugOverlay.innerHTML = "No compass data available.";
-  }
-}
 
 document.addEventListener('DOMContentLoaded', () => {
   const start = async () => {
     // Enable resizing the bottom panel with touch and drag
     enablePanelResizing();
 
-    // updateGPS();
     // Initialize the ArcGIS SceneView
     initSceneView();
   }
@@ -376,7 +387,7 @@ function initSceneView() {
     "esri/widgets/Search",
     "esri/widgets/Expand",
     "esri/rest/locator",
-    "esri/geometry/Point",
+    "esri/geometry/Point"
   ], (
     Track,
     WebScene,
@@ -391,19 +402,28 @@ function initSceneView() {
 
     //********************** Set up a Web Scene **********************//
     // Load the webscene 
+    // Create a new WebScene programmatically
     const webscene = new WebScene({
-      portalItem: {
-        id: "1960f4386fd549bb82f8ac1bf2b7b087"
-      }
-    });
+    basemap: "topo-vector", // Use the "Outdoor" basemap
+    ground: "world-elevation" // Enable elevation for 3D effects
+  });
 
-    const view = new SceneView({
+    view = new SceneView({
       container: "viewDiv",
       map: webscene,
       environment: {
         lighting: {
           directShadowsEnabled: true
         }
+      },
+      camera: {
+        position: {
+          latitude: 21.3069, // near Honolulu, HI
+          longitude: -157.8583, // near Honolulu, HI
+          z: 5000 // Height in meters (500m is near street level)
+        },
+        tilt: 60, // Tilt the camera 
+        heading: 0 // Initial heading (0 degrees)
       }
     });
 
@@ -531,6 +551,14 @@ function initSceneView() {
 
     view.ui.add(document.getElementById("cityStyle"), "bottom-left");
 
+    //********************** Compass **********************//
+    // let compass = new Compass({
+    //   view: view
+    // });
+    
+    // // Add the compass to the top left corner of the MapView
+    // view.ui.add(compass, "top-left");
+
     //********************** User Location Tracking (Blue Dot) **********************//
     const track = new Track({
       view: view
@@ -548,6 +576,11 @@ function initSceneView() {
         longitude: event.position.coords.longitude
       });
 
+      // view.goTo({
+      //   position: {
+      //     z: view.camera.position.z // Use the current zoom level
+      //   }
+      // })
       const locatorUrl = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
       
       // Only assign the US state once
@@ -713,8 +746,144 @@ function initSceneView() {
     });
   });
 }
-// Listen for device orientation events (compass)
-window.addEventListener("deviceorientationabsolute", updateHeading, true);
+
+//** Compass Heading *//
+// Update Heading Function
+function updateHeading(event) {
+  if (event.alpha !== null) {
+    // Check if the compass is reliable
+    // if (!isCompassReliable(event)) {
+    //   console.warn("Compass data is unreliable. Skipping heading update.");
+    //   debugOverlay.innerHTML = "Compass data is unreliable. Falling back to GPS.";
+    //   return; // Exit the function if the compass is unreliable
+    // }
+
+    // Calculate the raw heading
+    const rawHeading = 360 - event.alpha; // Convert to compass heading
+    console.log("Raw Heading:", rawHeading); // Debugging log
+
+    // Apply smoothing to reduce jitter
+    if (smoothedHeading === null) {
+      smoothedHeading = rawHeading; // Initialize smoothedHeading
+    } else {
+      smoothedHeading = smoothedHeading + smoothingFactor * (rawHeading - smoothedHeading); // Apply smoothing
+    }
+    console.log("Smoothed Heading:", smoothedHeading); // Debugging log
+
+    // Track if GPS location has moved significantly
+    const gpsLat = useFilteredData ? filteredLat : lat;
+    const gpsLon = useFilteredData ? filteredLon : lon;
+    const gpsSignificantChange =
+      previousLat === null || previousLon === null || // First time
+      Math.abs(gpsLat - previousLat) > changeThreshold || // Significant latitude change
+      Math.abs(gpsLon - previousLon) > changeThreshold; // Significant longitude change
+
+    // Check if the heading change exceeds the threshold
+    const headingSignificantChange =
+      previousHeading === null || Math.abs(smoothedHeading - previousHeading) > headingChangeThreshold;
+
+    // Update the SceneView camera heading, tilt, and position
+    // if (view) {
+    //   const zoomLevel = view.camera.position.z;
+    //   view.goTo({
+    //     heading: smoothedHeading,
+    //     tilt: Math.max(0, Math.min(90, event.beta || view.camera.tilt)), // Clamp tilt between 0 and 90 degrees
+    //     position: {
+    //       latitude: gpsLat,
+    //       longitude: gpsLon,
+    //       z: zoomLevel // Maintain the current zoom level
+    //     }
+    //   }).catch((error) => {
+    //     if (error.name !== "AbortError") {
+    //       console.error("Error updating camera:", error);
+    //     }
+    //   })
+    // }
+
+    // Always update the overlay text with the latest heading and GPS data
+    updateOverlayText();
+
+    // Trigger `updateDisplay` only if it's the first heading or there is a significant change in both
+    if (previousHeading === null || (headingSignificantChange && gpsSignificantChange)) {
+      heading = smoothedHeading;
+      console.log(
+        `Significant change detected. GPS Change: ${gpsSignificantChange}, Heading Change: ${headingSignificantChange}`
+      );
+      updateDisplay(); // Trigger updateDisplay
+      
+      // Update previous values
+      previousHeading = smoothedHeading;
+      previousLat = gpsLat;
+      previousLon = gpsLon;
+    }
+  } else {
+    // Handle cases where compass data is unavailable
+    debugOverlay.innerHTML = "No compass data available.";
+    console.error("Compass data is unavailable.");
+  }
+}
+
+//* Handling Magnetic Interference: Check if the compass accuracy is acceptable
+function isCompassReliable(event) {
+  if (event.webkitCompassAccuracy && event.webkitCompassAccuracy > 10) {
+    console.warn("Compass accuracy is low. Falling back to GPS heading.");
+    return false;
+  }
+  return true;
+}
+
+function updateOverlayText() {
+  const gpsLat = useFilteredData ? filteredLat : lat;
+  const gpsLon = useFilteredData ? filteredLon : lon;
+
+  const overlayText = `
+  Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}° |  
+  WebScene Camheading: ${view.camera.heading.toFixed(2)}°<br>
+  Latitude: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}\n
+  Longitude: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
+`;
+  debugOverlay.innerHTML = overlayText;
+}
+
+// Function to request motion and orientation permissions on iOS
+function requestIOSPermissions() {
+  if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+    DeviceMotionEvent.requestPermission()
+      .then((response) => {
+        if (response === "granted") {
+          console.log("Motion permission granted.");
+          window.addEventListener("deviceorientation", updateHeading, true);
+        } else {
+          console.error("Motion permission denied.");
+          debugOverlay.innerHTML = "Motion permission denied.";
+        }
+      })
+      .catch((error) => {
+        console.error("Error requesting motion permission:", error);
+        debugOverlay.innerHTML = "Error requesting motion permission.";
+      });
+  } else {
+    console.log("DeviceMotionEvent.requestPermission not supported.");
+    window.addEventListener("deviceorientation", updateHeading, true);
+  }
+}
+
+// Listen for device orientation events - Request permissions on iOS
+document.addEventListener("DOMContentLoaded", () => {
+  if (navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("iPad")) {
+    console.log("iOS device detected. Requesting motion permissions...");
+    requestIOSPermissions();
+  } else {
+    console.log("Non-iOS device detected. Adding deviceorientation listener...");
+    // On some devices, the deviceorientationabsolute event provides more accurate heading data. 
+    if ("ondeviceorientationabsolute" in window) {
+      window.addEventListener("deviceorientationabsolute", updateHeading, true);
+    } else {
+      window.addEventListener("deviceorientation", updateHeading, true);
+    }
+    // window.addEventListener("deviceorientation", updateHeading, true);
+  }
+});
 
 // Function to toggle the data source
 function toggleDataSource() {
@@ -740,5 +909,5 @@ function updateDistanceValue(distance) {
 function updatePOICounter(poiCount) {
   document.getElementById('poi-counter').textContent = `(${poiCount})`;
 }
-// Start GPS updates (Called in DOM)
+// Start GPS updates 
 updateGPS();
