@@ -105,22 +105,25 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     default:
       imageSrc = symbol_default;
   }
-  
+  // Distance calculation
+  const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
+
   // Entity
   const entity = document.createElement('a-entity');
   entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
   
   // Height val, offset
   const imageHeight = 2; 
-  let lineHeight = imageHeight * 2;
-  let imageYOffset = imageHeight / 2;
+  let lineHeight = imageHeight * 1.5;
+  let lineYOffset = lineHeight;
+  let imageYOffset = imageHeight/2;
 
   // white line 
   const line = document.createElement('a-plane');
   line.setAttribute('color', 'white');
   line.setAttribute('width', 0.1); 
-  line.setAttribute('height', imageHeight * 2); // Length
-  line.setAttribute('position', `0 -${lineHeight / 2} 0`); // anchor is in the center 
+  line.setAttribute('height', lineHeight); // Length
+  line.setAttribute('position', `0 -${lineYOffset} 0`); // anchor is in the center 
   line.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   entity.appendChild(line);
 
@@ -128,46 +131,124 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   image.setAttribute('src', imageSrc);
   image.setAttribute('width', imageHeight); 
   image.setAttribute('height', imageHeight);
-  image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the line
+  image.setAttribute('position', `0 -${imageYOffset} 0`); // Position the image on top of the line
   image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
   entity.appendChild(image);
 
-  // Replace the image with a sphere (For debugging purposes)
-  // const sphere = document.createElement('a-sphere');
-  // sphere.setAttribute('radius', imageHeight / 2); // Set the radius of the sphere
-  // sphere.setAttribute('position', `0 ${imageYOffset} 0`); // Position the sphere on top of the line
-  // sphere.setAttribute('color', '#FF5733'); // Set the color of the sphere (you can customize this)
-  // sphere.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
-  // sphere.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
-  // entity.appendChild(sphere);
+  // Add text only if POIs are near enough (within textDistance)
+  const textThresholdDistance = 0; // Distance threshold for showing text
+  const showText = distance <= textThresholdDistance; 
 
-  const text = document.createElement('a-text');
-  text.setAttribute('value', poi.name);
-  text.setAttribute('color', 'black');
-  text.setAttribute('position', '0 3 0'); // Adjusted position to be above the image
-  text.setAttribute('scale', '5 5 5');
-  text.setAttribute('align', 'center'); // Center align the text
-  text.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
-  entity.appendChild(text);
-  
+    // Create Parent Entity for Text (* Fix for using look-at with rotation)
+    const textParent = document.createElement('a-entity');
+    textParent.setAttribute('look-at', '[gps-camera]'); // Apply look-at to the parent
+    textParent.setAttribute('position', `0 ${imageYOffset/2} 0`);
+
+    // Check if text already exists (*Fix for duplicate error)
+    const existingText = textParent.querySelector('.poi-text');
+    if (!existingText) {
+      const text = document.createElement('a-text');
+      text.classList.add('poi-text'); // Add a class to identify the text
+      text.setAttribute('text', {
+        value: poi.name,
+        color: 'black',
+        align: 'left'
+      });
+      text.setAttribute('position', '0 0 0'); // Initial position (will be adjusted dynamically)
+      text.setAttribute('rotation', '0 0 30'); // Adjust rotation for diagonal display
+      text.setAttribute('width', 3.5); // Set width for text wrapping
+      text.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
+      text.setAttribute('text-background', {
+        color: 'white',
+        padding: 0.1,
+        opacity: 0.9
+      }); // Apply the custom component
+      textParent.appendChild(text);
+    }
+
+    // Append the text parent to the entity
+    entity.appendChild(textParent);
+
+    // Apply reverse scaling based on Distance
+    const tScale = calculateReverseScale(distance); // Use the new function
+    textParent.setAttribute('scale', `${tScale} ${tScale} ${tScale}`);
+
   entity.setAttribute('gps-entity-place', `latitude: ${poi.latitude}; longitude: ${poi.longitude};`);
-
-  const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
+  // Update Entity Scaliing
   updateScale(entity, distance);
 
-  // Update look-at attribute after entity is added to the scene
+  // Update the following after POI entity is added to the scene
   entity.addEventListener('loaded', () => {
-    text.setAttribute('look-at', "[gps-camera]");
     image.setAttribute('look-at', "[gps-camera]");
   });
 
   return entity;
 }
-function adjustTextScale(text, distance) {
-  const baseScale = 5; // Increased base scale for text
-  const scaleFactor = 1 / distance; // Scale factor based on distance
-  text.setAttribute('scale', `${baseScale * scaleFactor} ${baseScale * scaleFactor} ${baseScale * scaleFactor}`);
+
+
+AFRAME.registerComponent('text-background', {
+  schema: {
+    color: { type: 'string', default: 'white' }, // Background color
+    padding: { type: 'number', default: 0.1 },  // Padding around the text
+    opacity: { type: 'number', default: 0.9 }   // Background opacity
+  },
+
+  init: function () {
+    const textEl = this.el; // The entity with the text
+    const backgroundEl = document.createElement('a-plane'); // Background plane
+
+    // Set initial background properties
+    backgroundEl.setAttribute('color', this.data.color);
+    backgroundEl.setAttribute('opacity', this.data.opacity);
+    backgroundEl.setAttribute('position', '0 0 -1'); // Slightly behind the text
+    backgroundEl.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
+
+    // Append the background plane as a child of the text entity
+    textEl.appendChild(backgroundEl);
+
+    // Adjust the background size dynamically after the text is loaded
+    textEl.addEventListener('loaded', () => {
+      this.updateBackgroundSize(textEl, backgroundEl);
+    });
+
+    // Adjust the background size dynamically when the text changes
+    textEl.addEventListener('componentchanged', (event) => {
+      if (event.detail.name === 'text') {
+        this.updateBackgroundSize(textEl, backgroundEl);
+      }
+    });
+  },
+
+  updateBackgroundSize: function (textEl, backgroundEl) {
+    // Get the computed dimensions of the text
+    const textData = textEl.getAttribute('text');
+    const textWidth = textData.width || 2; // Default width if not set
+    const textHeight = textData.height || 0.125; // Default height if not set
+    const padding = this.data.padding;
+
+    console.log("Text Width: ", textData.width, "Text Height: ", textData.height);
+    // Set the background size based on the text dimensions and padding
+    backgroundEl.setAttribute('width', textWidth + padding * 2);
+    backgroundEl.setAttribute('height', textHeight + padding * 2);
+
+    // Align the background to the left using offsetX
+    const offsetX = (textWidth / 2);
+    backgroundEl.setAttribute('position', `${offsetX} 0 -0.2`);
+  }
+});
+
+function calculateReverseScale(distance) {
+// Define the goal distance and goal scale
+  const goalDistance = 1000; // 1000 meters
+  const goalScale = 1.25; // Scale for a POI at 1000 meters
+  if (distance === 0) {
+    console.warn("Distance is zero. Returning goal scale.");
+    return goalScale; // Return the goal scale for zero distance
+  }
+  // Adjust the scale to match the goal size
+  const adjustedScale = goalScale * (distance / goalDistance);
+  return adjustedScale;
 }
 
 //  // Query the FeatureLayer based on the selected State
@@ -196,11 +277,12 @@ function loadPOIData() {
       .then(function(result) {
         console.log('FeatureLayer data loaded:', result.features); // Debugging log
         const features = result.features;
+
         const batchSize = 25; // Number of POIs to process in each batch
         const interval = 100; // Interval in milliseconds between each batch
         let index = 0;
         let poiCount = 0; // Counter for POIs
-        updatePOICounter(poiCount);
+        // updatePOICounter(poiCount);
 
         const processBatch = () => {
           while (index < features.length) { // while loop: continuous & iterative processing
@@ -209,8 +291,15 @@ function loadPOIData() {
               const poi = {
                 name: feature.attributes.NAME,
                 latitude: feature.geometry.latitude,
-                longitude: feature.geometry.longitude
+                longitude: feature.geometry.longitude,
               };
+              
+              // Check if a POI with the same ID already exists (* Fix for duplicates)
+              const existingPOI = document.getElementById(poi.name.replace(/\s+/g, '-').toLowerCase());
+              if (existingPOI) {
+                console.log(`Skipping duplicate POI: ${poi.name}`);
+                return; // Skip duplicate POIs
+              }
 
               // Calculate distance between current location and POI
               const distance = calculateDistance(curLat, curLon, poi.latitude, poi.longitude);
@@ -223,7 +312,7 @@ function loadPOIData() {
                 updatePOICounter(poiCount);
               }
             });
-
+            
             index += batchSize;
 
             if (index >= features.length) {
@@ -782,24 +871,6 @@ function updateHeading(event) {
     const headingSignificantChange =
       previousHeading === null || Math.abs(smoothedHeading - previousHeading) > headingChangeThreshold;
 
-    // Update the SceneView camera heading, tilt, and position
-    // if (view) {
-    //   const zoomLevel = view.camera.position.z;
-    //   view.goTo({
-    //     heading: smoothedHeading,
-    //     tilt: Math.max(0, Math.min(90, event.beta || view.camera.tilt)), // Clamp tilt between 0 and 90 degrees
-    //     position: {
-    //       latitude: gpsLat,
-    //       longitude: gpsLon,
-    //       z: zoomLevel // Maintain the current zoom level
-    //     }
-    //   }).catch((error) => {
-    //     if (error.name !== "AbortError") {
-    //       console.error("Error updating camera:", error);
-    //     }
-    //   })
-    // }
-
     // Always update the overlay text with the latest heading and GPS data
     updateOverlayText();
 
@@ -809,7 +880,7 @@ function updateHeading(event) {
       console.log(
         `Significant change detected. GPS Change: ${gpsSignificantChange}, Heading Change: ${headingSignificantChange}`
       );
-      updateDisplay(); // Trigger updateDisplay
+      // updateDisplay(); // Trigger updateDisplay
       
       // Update previous values
       previousHeading = smoothedHeading;
@@ -837,10 +908,10 @@ function updateOverlayText() {
   const gpsLon = useFilteredData ? filteredLon : lon;
 
   const overlayText = `
-  Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}° |  
-  WebScene Camheading: ${view.camera.heading.toFixed(2)}°<br>
-  Latitude: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}\n
-  Longitude: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
+  Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
+  WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
+  Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, \n
+  Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
 `;
   debugOverlay.innerHTML = overlayText;
 }
