@@ -32,19 +32,44 @@
     }
 
     #toggleGPSButton {
-      cursor: pointer;
-      border: none;
-      border-radius: 5px;
       background-color: #9500ff;
-      padding: 10px;
-      color: white;
-      flex-shrink: 0;
+      width: 100px;
     }
+
+    #toggleTextButton {
+      background-color: #007BFF;
+      width: 70px;
+      position: absolute; /* Position it absolutely */
+      top: 30px; /* Distance from the top */
+      right: 10px; /* Distance from the right */
+      z-index: 1001; /* Ensure it is above the debug-overlay (z-index: 1000) */
+    }
+
+    button {
+      flex-shrink: 0;
+      color: white; /* White text */
+      border: none; /* Remove border */
+      border-radius: 5px; /* Rounded corners */
+      padding: 10px 5px; /* Padding for a better click area */
+      cursor: pointer; /* Pointer cursor on hover */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+      transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth hover effect */
+    }
+
+    button:hover {
+      background-color: #0056b3; /* Darker blue on hover */
+      /* transform: translateY(-2px); Slight lift on hover */
+    }
+
+    button:active {
+      background-color: #004085; /* Even darker blue on click */
+      /* transform: translateY(0); Reset lift on click */
+  }
 
     #slider-container {
       display: flex;
       align-items: center;
-      margin-left: 10px;
+      /* margin-left: 10px; */
       background: rgba(255, 255, 255, 0.8);
       padding: 5px;
       border-radius: 8px;
@@ -53,7 +78,7 @@
 
     #distanceSlider {
       width: 100%;
-      margin-right: 10px;
+      /* margin-right: 10px; */
     }
 
     #distanceValue {
@@ -216,6 +241,7 @@
   <div id="my-ar-container"></div>
   <div id="debug-overlay">Fetching GPS...</div>
   <div id="loadingIndicator">Loading Points of Interest Near You</div>
+  <button id="toggleTextButton">All T</button>
   <div id="control-container">
     <button id="toggleGPSButton">Use Raw GPS</button>
     <div id="slider-container">
@@ -226,7 +252,7 @@
   </div>
 
 
-  <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
+  <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true;'>
     <!-- Combined GPS & Heading Display -->
     <!-- User's Current Location -->
     <a-entity id="user-location">
