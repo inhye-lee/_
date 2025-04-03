@@ -18,6 +18,11 @@ let filteredLat = null, filteredLon = null;
 let previousLat = null, previousLon = null;
 const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.0001 = approx 11.13 meters)
 
+let curLat = 0, curLon = 0; // Chosen between raw & filtered data
+
+let showAllText = false; // Flag to show all text
+const textThresholdDistance = 1500; // Distance threshold for showing text (in meters)
+
 //Tracking Compass Heading in updateHeading
 let heading = 0;
 let smoothedHeading = null; // Variable to store the smoothed heading
@@ -107,18 +112,22 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   }
   // Distance calculation
   const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
+  // Apply scaling based on Distance
+  const proportionalScale = calculateProportionalScale(distance); 
+  const reverseScale = calculateReverseScale(distance); 
 
-  // Entity
-  const entity = document.createElement('a-entity');
-  entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
-  
   // Height val, offset
   const imageHeight = 2; 
   let lineHeight = imageHeight * 1.5;
-  let lineYOffset = lineHeight;
-  let imageYOffset = imageHeight/2;
+  let lineYOffset = (lineHeight/2);
+  let imageYOffset = lineHeight - imageHeight - 0.1;
 
-  // white line 
+  // Entity - Create a new entity for the POI
+  const entity = document.createElement('a-entity');
+  entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
+  entity.setAttribute('position', `0 0 0`);
+  
+  // (1) white line 
   const line = document.createElement('a-plane');
   line.setAttribute('color', 'white');
   line.setAttribute('width', 0.1); 
@@ -127,52 +136,56 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   line.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   entity.appendChild(line);
 
-  // image
+  //(2) image
   image.setAttribute('src', imageSrc);
   image.setAttribute('width', imageHeight); 
   image.setAttribute('height', imageHeight);
-  image.setAttribute('position', `0 -${imageYOffset} 0`); // Position the image on top of the line
+  image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the line
   image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
   entity.appendChild(image);
 
+  // (3) Text
   // Add text only if POIs are near enough (within textDistance)
-  const textThresholdDistance = 0; // Distance threshold for showing text
-  const showText = distance <= textThresholdDistance; 
+  const showText = distance <= textThresholdDistance || showAllText; // Show text if within distance or if showAllText is true
 
-    // Create Parent Entity for Text (* Fix for using look-at with rotation)
-    const textParent = document.createElement('a-entity');
-    textParent.setAttribute('look-at', '[gps-camera]'); // Apply look-at to the parent
-    textParent.setAttribute('position', `0 ${imageYOffset/2} 0`);
+  // Create Parent Entity for Text (* Fix for using look-at with rotation)
+  const textParent = document.createElement('a-entity');
+  textParent.setAttribute('look-at', '[gps-camera]'); // Apply look-at to the parent
 
-    // Check if text already exists (*Fix for duplicate error)
-    const existingText = textParent.querySelector('.poi-text');
-    if (!existingText) {
-      const text = document.createElement('a-text');
-      text.classList.add('poi-text'); // Add a class to identify the text
-      text.setAttribute('text', {
-        value: poi.name,
-        color: 'black',
-        align: 'left'
-      });
-      text.setAttribute('position', '0 0 0'); // Initial position (will be adjusted dynamically)
-      text.setAttribute('rotation', '0 0 30'); // Adjust rotation for diagonal display
-      text.setAttribute('width', 3.5); // Set width for text wrapping
-      text.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
-      text.setAttribute('text-background', {
-        color: 'white',
-        padding: 0.1,
-        opacity: 0.9
-      }); // Apply the custom component
-      textParent.appendChild(text);
-    }
+  // offset
+  let textYOffset = imageHeight + 0.1*reverseScale; //offset - image height  & scaled margin
+  textParent.setAttribute('position', `0 ${textYOffset} 0`);
 
-    // Append the text parent to the entity
-    entity.appendChild(textParent);
+  // Check if text already exists (*Fix for duplicate error)
+  const existingText = textParent.querySelector('.poi-text');
+  if (!existingText) {
+    const text = document.createElement('a-text');
+    text.classList.add('poi-text'); // Add a class to identify the text
+    text.setAttribute('text', {
+      value: poi.name,
+      color: 'black',
+      align: 'left'
+    });
+    
+    text.setAttribute('position', '0 0 0');
+    text.setAttribute('rotation', '0 0 30'); // Adjust rotation for diagonal display
+    text.setAttribute('text-background', {
+      color: 'white',
+      padding: 0.2,
+      opacity: 0.9
+    }); // Apply the custom component
 
-    // Apply reverse scaling based on Distance
-    const tScale = calculateReverseScale(distance); // Use the new function
-    textParent.setAttribute('scale', `${tScale} ${tScale} ${tScale}`);
+    text.setAttribute('visible', showText); // Set visibility based on distance or toggle button
+    textParent.appendChild(text);
+  }
+
+
+  // Append the text parent to the entity
+  entity.appendChild(textParent);
+
+  // Apply reverse scaling based on Distance
+  textParent.setAttribute('scale', `${reverseScale} ${reverseScale} ${reverseScale}`);
 
   entity.setAttribute('gps-entity-place', `latitude: ${poi.latitude}; longitude: ${poi.longitude};`);
   // Update Entity Scaliing
@@ -181,6 +194,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   // Update the following after POI entity is added to the scene
   entity.addEventListener('loaded', () => {
     image.setAttribute('look-at', "[gps-camera]");
+    line.setAttribute('look-at', "[gps-camera]");
   });
 
   return entity;
@@ -190,7 +204,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 AFRAME.registerComponent('text-background', {
   schema: {
     color: { type: 'string', default: 'white' }, // Background color
-    padding: { type: 'number', default: 0.1 },  // Padding around the text
+    padding: { type: 'number', default: 0.2 },  // Padding around the text
     opacity: { type: 'number', default: 0.9 }   // Background opacity
   },
 
@@ -201,8 +215,8 @@ AFRAME.registerComponent('text-background', {
     // Set initial background properties
     backgroundEl.setAttribute('color', this.data.color);
     backgroundEl.setAttribute('opacity', this.data.opacity);
-    backgroundEl.setAttribute('position', '0 0 -1'); // Slightly behind the text
-    backgroundEl.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
+
+    // backgroundEl.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
 
     // Append the background plane as a child of the text entity
     textEl.appendChild(backgroundEl);
@@ -223,18 +237,20 @@ AFRAME.registerComponent('text-background', {
   updateBackgroundSize: function (textEl, backgroundEl) {
     // Get the computed dimensions of the text
     const textData = textEl.getAttribute('text');
-    const textWidth = textData.width || 2; // Default width if not set
-    const textHeight = textData.height || 0.125; // Default height if not set
+    const textValue = textData.value || '';
+    const charWidth = 0.14; // Approximate character width
+    const textWidth = textValue.length * charWidth || 2; // Calculate width based on character count
+    const textHeight = textData.height || charWidth; // Default height if not set
     const padding = this.data.padding;
 
     console.log("Text Width: ", textData.width, "Text Height: ", textData.height);
     // Set the background size based on the text dimensions and padding
     backgroundEl.setAttribute('width', textWidth + padding * 2);
-    backgroundEl.setAttribute('height', textHeight + padding * 2);
+    backgroundEl.setAttribute('height', textHeight + padding);
 
     // Align the background to the left using offsetX
     const offsetX = (textWidth / 2);
-    backgroundEl.setAttribute('position', `${offsetX} 0 -0.2`);
+    backgroundEl.setAttribute('position', `${offsetX} 0 -2.5`); // Adjust position to center the background; Z-flicker fix
   }
 });
 
@@ -250,6 +266,20 @@ function calculateReverseScale(distance) {
   const adjustedScale = goalScale * (distance / goalDistance);
   return adjustedScale;
 }
+
+function calculateProportionalScale(distance) {
+  // Define the goal distance and goal scale
+    const goalDistance = 1000; // 1000 meters
+    const goalScale = 1.25; // Scale for a POI at 1000 meters
+    if (distance === 0) {
+      console.warn("Distance is zero. Returning goal scale.");
+      return goalScale; // Return the goal scale for zero distance
+    }
+    // Adjust the scale to match the goal size
+    const adjustedScale = goalScale * (goalDistance / distance);
+    return adjustedScale;
+  }
+  
 
 //  // Query the FeatureLayer based on the selected State
 function loadPOIData() {
@@ -267,8 +297,8 @@ function loadPOIData() {
     });
 
     // Assign which lat & lon to use
-    const curLat = useFilteredData ? filteredLat : lat;
-    const curLon = useFilteredData ? filteredLon : lon;
+    curLat = useFilteredData ? filteredLat : lat;
+    curLon = useFilteredData ? filteredLon : lon;
 
     // Apply filter by selected state
     featureLayer.definitionExpression = `STATE = '${selectedState}'`;
@@ -334,20 +364,6 @@ function loadPOIData() {
 }
 
 function updateDisplay() { // This is where AR Screen gets refreshed
-  // Display Raw GPS & Noise-reduced GPS in debugOverlay
-  //   // Lat: ${lat.toFixed(10)}\nLng: ${lon.toFixed(10)}\n
-  // updateOverlayText();
-
-  // const displayText = `
-  // Heading: ${heading.toFixed(2)}°\n\n
-  // Lat: ${filteredLat.toFixed(10)}\nLng: ${filteredLon.toFixed(10)}`;
-
-  // infoText.setAttribute("value", displayText);
-  // // Corrected: Include heading in gps-entity-place
-  // infoText.setAttribute("gps-entity-place", `latitude: ${lat}; longitude: ${lon}; heading: ${heading}`);
-
-  // debugOverlay.innerHTML = displayText;
-
   // Clear existing POIs
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
@@ -952,7 +968,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       window.addEventListener("deviceorientation", updateHeading, true);
     }
-    // window.addEventListener("deviceorientation", updateHeading, true);
   }
 });
 
@@ -963,8 +978,29 @@ function toggleDataSource() {
   console.log("useFilteredData: ", useFilteredData);
 }
 
-// Add event listener to the button
+// Add event listener to the toggleGPS button
 document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
+
+// Function to toggle the text visibility in POIs
+function toggleTextVisibility() {
+  showAllText = !showAllText; // Toggle the flag
+  document.getElementById('toggleTextButton').textContent = showAllText ? 'Nearby T' : 'All T';
+
+  // Update the visibility of all text entities
+  const textEntities = document.querySelectorAll('.poi-text'); // Select all text elements
+  textEntities.forEach((textEntity) => {
+    const textParent = textEntity.parentNode; // Get the parent entity
+    if (textParent) {
+      const distance = calculateDistance(curLat, curLon, textParent.parentNode.getAttribute('gps-entity-place').latitude, textParent.parentNode.getAttribute('gps-entity-place').longitude);
+      if (distance > textThresholdDistance) {
+        textEntity.setAttribute('visible', showAllText); // Update visibility for distant POIs
+      }
+    }
+  });
+}
+
+// Add event listener to the toggle Text button
+document.getElementById('toggleTextButton').addEventListener('click', toggleTextVisibility);
 
 // Add event listener to the slider to update thresholdDistance
 document.getElementById('distanceSlider').addEventListener('input', function(event) {
