@@ -94,8 +94,13 @@ function updateScale(entity, distance) {
 }
 
 function createPOIEntity(poi, userLatitude, userLongitude) {
-  // Label Image
-  const image = document.createElement('a-image');
+
+  // Distance calculation & Scaling
+  const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
+  const proportionalScale = calculateProportionalScale(distance); 
+  const reverseScale = calculateReverseScale(distance); 
+
+  // Image Source for Label
   let imageSrc;
   switch (selectedState) {
     case 'HI':
@@ -110,23 +115,19 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     default:
       imageSrc = symbol_default;
   }
-  // Distance calculation
-  const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
-  // Apply scaling based on Distance
-  const proportionalScale = calculateProportionalScale(distance); 
-  const reverseScale = calculateReverseScale(distance); 
 
   // Height val, offset
   const imageHeight = 2; 
   let lineHeight = imageHeight * 1.5;
   let lineYOffset = (lineHeight/2);
   let imageYOffset = lineHeight - imageHeight - 0.1;
-
-  // Entity - Create a new entity for the POI
+  
+  // (0) Entity - Create a new entity for the POI
   const entity = document.createElement('a-entity');
   entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
   entity.setAttribute('position', `0 0 0`);
-  
+  entity.setAttribute('visible', true);
+
   // (1) white line 
   const line = document.createElement('a-plane');
   line.setAttribute('color', 'white');
@@ -137,9 +138,11 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   entity.appendChild(line);
 
   //(2) image
+  const image = document.createElement('a-image');
   image.setAttribute('src', imageSrc);
   image.setAttribute('width', imageHeight); 
   image.setAttribute('height', imageHeight);
+  // image.setAttribute('geometry', 'primitive: plane; width: 2; height: 2'); // Set the geometry
   image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the line
   image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
@@ -157,17 +160,25 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   let textYOffset = imageHeight + 0.1*reverseScale; //offset - image height  & scaled margin
   textParent.setAttribute('position', `0 ${textYOffset} 0`);
 
+  // Shorten the text to the first two words and add "..." if there are more than two words
+  const fullText = poi.name;
+  const words = poi.name.split(' ');
+  const shortenedText = words.length > 2 ? words.slice(0, 2).join(' ') + '...' : poi.name || 'Unnamed POI';
+
   // Check if text already exists (*Fix for duplicate error)
   const existingText = textParent.querySelector('.poi-text');
   if (!existingText) {
     const text = document.createElement('a-text');
     text.classList.add('poi-text'); // Add a class to identify the text
-    text.setAttribute('text', {
-      value: poi.name,
-      color: 'black',
-      align: 'left'
+
+    text.addEventListener('loaded', () => {
+      text.setAttribute('text', {
+        value: shortenedText || 'Default Text',
+        color: 'black',
+        align: 'left'
+      });
     });
-    
+
     text.setAttribute('position', '0 0 0');
     text.setAttribute('rotation', '0 0 30'); // Adjust rotation for diagonal display
     text.setAttribute('text-background', {
@@ -177,9 +188,9 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     }); // Apply the custom component
 
     text.setAttribute('visible', showText); // Set visibility based on distance or toggle button
+
     textParent.appendChild(text);
   }
-
 
   // Append the text parent to the entity
   entity.appendChild(textParent);
@@ -189,16 +200,80 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
   entity.setAttribute('gps-entity-place', `latitude: ${poi.latitude}; longitude: ${poi.longitude};`);
   // Update Entity Scaliing
-  updateScale(entity, distance);
+  updateScale(entity, distance);  
 
-  // Update the following after POI entity is added to the scene
+  entity.classList.add('clickable');
+  image.classList.add('clickable'); //* Fix: clickable class had to be added to the child
+
+  // Add the toggle-title attribute to the entity
+  entity.setAttribute('toggle-title', `full: ${fullText}; short: ${shortenedText}`);
+  entity.setAttribute('debug-raycaster', ''); // Add debug raycaster component
+  // Add look-at behavior after the entity is loaded
   entity.addEventListener('loaded', () => {
-    image.setAttribute('look-at', "[gps-camera]");
-    line.setAttribute('look-at', "[gps-camera]");
+    if (image) {
+      image.setAttribute('look-at', '[gps-camera]');
+    } else {
+      console.error('Image element is null when trying to set look-at.');
+    }
+    line.setAttribute('look-at', '[gps-camera]');
   });
-
+  
   return entity;
 }
+
+AFRAME.registerComponent('toggle-title', {
+  schema: {
+    full: { type: 'string', default: '' }, // Full text for the POI
+    short: { type: 'string', default: '' } // Shortened text for the POI
+  },
+
+  init: function () {
+    const el = this.el;
+    
+    if (!this.clickHandler) { // Ensure the event listener is added only once
+      this.clickHandler = function (evt) {
+        evt.stopPropagation(); // Prevent the event from propagating to parent elements
+        console.log("clicked item is", el);
+
+        // Get the text element inside the clicked entity
+        const textEntity = el.querySelector('.poi-text');
+        const isTextVislble = textEntity.getAttribute('visible');
+        if (textEntity && isTextVislble) {
+          // Get the current text value
+          const currentText = textEntity.getAttribute('text').value;
+
+          // Get text from attributes directly (* Fix - Not available from schema)
+          const fullText = el.getAttribute('toggle-title').full;
+          const shortenedText = el.getAttribute('toggle-title').short;
+
+          // Toggle between full text and shortened text
+          const newText = currentText === shortenedText ? fullText : shortenedText;
+
+          // Update the text value
+          textEntity.setAttribute('text', 'value', newText);
+        }
+      };
+      el.addEventListener('click', this.clickHandler);
+    }
+  },
+  remove: function () {
+    // Remove the event listener when the component is removed
+    if (this.clickHandler) {
+      this.el.removeEventListener('click', this.clickHandler);
+    }
+  }
+});
+
+AFRAME.registerComponent('debug-raycaster', {
+  init: function () {
+    this.el.addEventListener('raycaster-intersected', (evt) => {
+      console.log('Raycaster intersected with:', evt.detail.el);
+    });
+    this.el.addEventListener('raycaster-intersected-cleared', (evt) => {
+      console.log('Raycaster cleared for:', evt.detail.el);
+    });
+  }
+});
 
 
 AFRAME.registerComponent('text-background', {
@@ -243,7 +318,7 @@ AFRAME.registerComponent('text-background', {
     const textHeight = textData.height || charWidth; // Default height if not set
     const padding = this.data.padding;
 
-    console.log("Text Width: ", textData.width, "Text Height: ", textData.height);
+    console.log("Text Width: ", textWidth, "Text Height: ", textHeight);
     // Set the background size based on the text dimensions and padding
     backgroundEl.setAttribute('width', textWidth + padding * 2);
     backgroundEl.setAttribute('height', textHeight + padding);
@@ -278,7 +353,7 @@ function calculateProportionalScale(distance) {
     // Adjust the scale to match the goal size
     const adjustedScale = goalScale * (goalDistance / distance);
     return adjustedScale;
-  }
+}
   
 
 //  // Query the FeatureLayer based on the selected State
@@ -327,7 +402,7 @@ function loadPOIData() {
               // Check if a POI with the same ID already exists (* Fix for duplicates)
               const existingPOI = document.getElementById(poi.name.replace(/\s+/g, '-').toLowerCase());
               if (existingPOI) {
-                console.log(`Skipping duplicate POI: ${poi.name}`);
+                // console.log(`Skipping duplicate POI: ${poi.name}`);
                 return; // Skip duplicate POIs
               }
 
