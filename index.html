@@ -265,7 +265,8 @@
       position="0 3 -5"
   ></a-text>
       </a-entity>
-    <a-camera gps-camera rotation-reader></a-camera>
+      <!-- <a-camera gps-camera rotation-reader></a-camera> -->
+    <a-camera gps-camera rotation-reader raycaster="objects: .clickable; near: 0.1; far: 100000; rayOrigin: mouse" cursor="fuse: false"></a-camera>
 </a-scene>
 
   <div id="bottom-container">
