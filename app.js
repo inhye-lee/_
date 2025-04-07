@@ -20,9 +20,6 @@ const changeThreshold = 0.0001; // Threshold for significant change in GPS (0.00
 
 let curLat = 0, curLon = 0; // Chosen between raw & filtered data
 
-let showAllText = false; // Flag to show all text
-const textThresholdDistance = 1500; // Distance threshold for showing text (in meters)
-
 //Tracking Compass Heading in updateHeading
 let heading = 0;
 let smoothedHeading = null; // Variable to store the smoothed heading
@@ -31,6 +28,9 @@ const headingChangeThreshold = 5; // Minimum change in degrees to trigger an upd
 let previousHeading = null; // Store the previous heading value
 
 let thresholdDistance = 3000; // Default value (Dynamic via Slider)
+
+let currentlyExpandedPOI = null;
+let userInteracted = false; // Tracks if the user has interacted with a POI
 
 const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
 
@@ -127,6 +127,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
   entity.setAttribute('position', `0 0 0`);
   entity.setAttribute('visible', true);
+  entity.setAttribute('look-at', '[gps-camera]'); // Look at the camera
 
   // (1) white line 
   const line = document.createElement('a-plane');
@@ -142,28 +143,27 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   image.setAttribute('src', imageSrc);
   image.setAttribute('width', imageHeight); 
   image.setAttribute('height', imageHeight);
-  // image.setAttribute('geometry', 'primitive: plane; width: 2; height: 2'); // Set the geometry
+  image.setAttribute('geometry', 'primitive: plane; width: 2; height: 2'); // Set the geometry
   image.setAttribute('position', `0 ${imageYOffset} 0`); // Position the image on top of the line
   image.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
   image.setAttribute('material', 'alphaTest: 0.5'); // Add alphaTest for transparency
   entity.appendChild(image);
 
   // (3) Text
-  // Add text only if POIs are near enough (within textDistance)
-  const showText = distance <= textThresholdDistance || showAllText; // Show text if within distance or if showAllText is true
 
   // Create Parent Entity for Text (* Fix for using look-at with rotation)
   const textParent = document.createElement('a-entity');
-  textParent.setAttribute('look-at', '[gps-camera]'); // Apply look-at to the parent
+  textParent.classList.add('text-parent')
 
   // offset
-  let textYOffset = imageHeight + 0.1*reverseScale; //offset - image height  & scaled margin
+  let textYOffset = imageHeight + 2.0*reverseScale; //offset - image height  & scaled margin
+  // textParent.setAttribute('position', `0 ${textYOffset} 0`);
   textParent.setAttribute('position', `0 ${textYOffset} 0`);
 
   // Shorten the text to the first two words and add "..." if there are more than two words
   const fullText = poi.name;
   const words = poi.name.split(' ');
-  const shortenedText = words.length > 2 ? words.slice(0, 2).join(' ') + '...' : poi.name || 'Unnamed POI';
+  const shortenedText = words.length > 2 ? words.slice(0, 1).join(' ') + '...' : poi.name || 'Unnamed POI';
 
   // Check if text already exists (*Fix for duplicate error)
   const existingText = textParent.querySelector('.poi-text');
@@ -175,25 +175,28 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
       text.setAttribute('text', {
         value: shortenedText || 'Default Text',
         color: 'black',
-        align: 'left'
+        align: 'center'
       });
     });
 
-    text.setAttribute('position', '0 0 0');
-    text.setAttribute('rotation', '0 0 30'); // Adjust rotation for diagonal display
+    text.setAttribute('position', `0 0 0`);
+    text.setAttribute('rotation', '0 0 0'); // Adjust rotation for diagonal display
     text.setAttribute('text-background', {
       color: 'white',
       padding: 0.2,
       opacity: 0.9
     }); // Apply the custom component
-
-    text.setAttribute('visible', showText); // Set visibility based on distance or toggle button
-
+    
     textParent.appendChild(text);
   }
 
   // Append the text parent to the entity
+  textParent.setAttribute('visible', false); // Hide the text by default
   entity.appendChild(textParent);
+
+  // (4) Connecting Line
+  const connectingLine = createLine(entity, { x: 0, y: textYOffset-0.15, z: 0 }, { x: 0, y: imageYOffset+imageHeight/2, z: 0 }, 'white');
+  connectingLine.setAttribute('visible', false); // Hide the line by default
 
   // Apply reverse scaling based on Distance
   textParent.setAttribute('scale', `${reverseScale} ${reverseScale} ${reverseScale}`);
@@ -207,19 +210,69 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
   // Add the toggle-title attribute to the entity
   entity.setAttribute('toggle-title', `full: ${fullText}; short: ${shortenedText}`);
-  entity.setAttribute('debug-raycaster', ''); // Add debug raycaster component
   // Add look-at behavior after the entity is loaded
   entity.addEventListener('loaded', () => {
     if (image) {
       image.setAttribute('look-at', '[gps-camera]');
+      textParent.setAttribute('look-at', '[gps-camera]'); // Apply look-at to the parent
+      line.setAttribute('look-at', '[gps-camera]');
     } else {
       console.error('Image element is null when trying to set look-at.');
     }
-    line.setAttribute('look-at', '[gps-camera]');
   });
   
   return entity;
 }
+
+// (4) Connection Line using a-plane
+function createLine(entity, start, end, color = 'white') {
+  const line = document.createElement('a-plane');
+  line.classList.add('connecting-line'); // Add the class
+
+  // Calculate the midpoint between start and end
+  const midX = (start.x + end.x) / 2;
+  const midY = (start.y + end.y) / 2;
+  const midZ = (start.z + end.z) / 2;
+
+  // Calculate the length of the line
+  const length = Math.sqrt(
+    Math.pow(end.x - start.x, 2) +
+    Math.pow(end.y - start.y, 2) +
+    Math.pow(end.z - start.z, 2)
+  );
+
+  // Set the attributes for the plane
+  line.setAttribute('color', color);
+  line.setAttribute('width', 0.05); // Thickness (adjust as needed)
+  line.setAttribute('height', length); // Set the height to the length of the line
+  line.setAttribute('position', `${midX} ${midY} ${midZ}`);
+  line.setAttribute('rotation', `0 0 0`); // Rotate the plane to align with the start and end points
+
+  entity.appendChild(line);
+  return line;
+}
+
+AFRAME.registerComponent('raycaster-handler', {
+  init: function () {
+    const raycasterEl = document.querySelector('#raycaster-camera');
+    console.log('raycasterEl', raycasterEl);
+
+    raycasterEl.addEventListener('raycaster-intersected', (evt) => {
+      console.log('Raycaster intersected with:', evt.detail.el);
+    });
+
+    raycasterEl.addEventListener('raycaster-intersected-cleared', (evt) => {
+      console.log('Raycaster cleared for:', evt.detail.el);
+    });
+
+    raycasterEl.addEventListener('click', (evt) => {
+      const intersections = raycasterEl.components.raycaster.intersectedEls;
+      if (intersections.length > 0) {
+        console.log('Clicked on:', intersections[0]);
+      }
+    });
+  }
+});
 
 AFRAME.registerComponent('toggle-title', {
   schema: {
@@ -229,33 +282,63 @@ AFRAME.registerComponent('toggle-title', {
 
   init: function () {
     const el = this.el;
-    
-    if (!this.clickHandler) { // Ensure the event listener is added only once
+
+    if (!this.clickHandler) {
       this.clickHandler = function (evt) {
         evt.stopPropagation(); // Prevent the event from propagating to parent elements
-        console.log("clicked item is", el);
+        console.log("Clicked item is", el);
 
         // Get the text element inside the clicked entity
         const textEntity = el.querySelector('.poi-text');
-        const isTextVislble = textEntity.getAttribute('visible');
-        if (textEntity && isTextVislble) {
+        const textParent = textEntity.parentNode; // Get the parent entity of the text
+        const connectingLine = el.querySelector('.connecting-line'); // Select the connecting line by its class
+        const isTextVisible = textParent.getAttribute('visible') === 'true';
+
+        if (textEntity) {
           // Get the current text value
           const currentText = textEntity.getAttribute('text').value;
 
-          // Get text from attributes directly (* Fix - Not available from schema)
+          // Get text from attributes directly
           const fullText = el.getAttribute('toggle-title').full;
           const shortenedText = el.getAttribute('toggle-title').short;
+
+          // Collapse the previously expanded POI
+          if (currentlyExpandedPOI && currentlyExpandedPOI !== el) {
+            const previousTextEntity = currentlyExpandedPOI.querySelector('.poi-text');
+            const previousTextParent = previousTextEntity.parentNode;
+            const previousConnectingLine = currentlyExpandedPOI.querySelector('.connecting-line'); // Get the previous connecting line
+            if (previousTextEntity) {
+              const previousShortText = currentlyExpandedPOI.getAttribute('toggle-title').short;
+              previousTextEntity.setAttribute('text', 'value', previousShortText);
+              previousTextParent.setAttribute('visible', false); // Hide the textParent for the previous POI
+              if (previousConnectingLine) {
+                previousConnectingLine.setAttribute('visible', false); // Hide the connecting line for the previous POI
+              }
+            }
+          }
 
           // Toggle between full text and shortened text
           const newText = currentText === shortenedText ? fullText : shortenedText;
 
           // Update the text value
           textEntity.setAttribute('text', 'value', newText);
+
+          // Update the visibility of the textParent and connectingLine
+          const isVisible = newText === fullText;
+          textParent.setAttribute('visible', isVisible);
+          if (connectingLine) {
+            connectingLine.setAttribute('visible', isVisible); // Sync connecting line visibility with textParent
+          }
+
+          // Update the currently expanded POI
+          currentlyExpandedPOI = isVisible ? el : null;
         }
       };
+
       el.addEventListener('click', this.clickHandler);
     }
   },
+
   remove: function () {
     // Remove the event listener when the component is removed
     if (this.clickHandler) {
@@ -263,18 +346,6 @@ AFRAME.registerComponent('toggle-title', {
     }
   }
 });
-
-AFRAME.registerComponent('debug-raycaster', {
-  init: function () {
-    this.el.addEventListener('raycaster-intersected', (evt) => {
-      console.log('Raycaster intersected with:', evt.detail.el);
-    });
-    this.el.addEventListener('raycaster-intersected-cleared', (evt) => {
-      console.log('Raycaster cleared for:', evt.detail.el);
-    });
-  }
-});
-
 
 AFRAME.registerComponent('text-background', {
   schema: {
@@ -318,13 +389,14 @@ AFRAME.registerComponent('text-background', {
     const textHeight = textData.height || charWidth; // Default height if not set
     const padding = this.data.padding;
 
-    console.log("Text Width: ", textWidth, "Text Height: ", textHeight);
+    // console.log("Text Width: ", textWidth, "Text Height: ", textHeight);
     // Set the background size based on the text dimensions and padding
     backgroundEl.setAttribute('width', textWidth + padding * 2);
     backgroundEl.setAttribute('height', textHeight + padding);
 
     // Align the background to the left using offsetX
-    const offsetX = (textWidth / 2);
+    // const offsetX = (textWidth / 2);
+    const offsetX =0; 
     backgroundEl.setAttribute('position', `${offsetX} 0 -2.5`); // Adjust position to center the background; Z-flicker fix
   }
 });
@@ -1055,27 +1127,6 @@ function toggleDataSource() {
 
 // Add event listener to the toggleGPS button
 document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
-
-// Function to toggle the text visibility in POIs
-function toggleTextVisibility() {
-  showAllText = !showAllText; // Toggle the flag
-  document.getElementById('toggleTextButton').textContent = showAllText ? 'Nearby T' : 'All T';
-
-  // Update the visibility of all text entities
-  const textEntities = document.querySelectorAll('.poi-text'); // Select all text elements
-  textEntities.forEach((textEntity) => {
-    const textParent = textEntity.parentNode; // Get the parent entity
-    if (textParent) {
-      const distance = calculateDistance(curLat, curLon, textParent.parentNode.getAttribute('gps-entity-place').latitude, textParent.parentNode.getAttribute('gps-entity-place').longitude);
-      if (distance > textThresholdDistance) {
-        textEntity.setAttribute('visible', showAllText); // Update visibility for distant POIs
-      }
-    }
-  });
-}
-
-// Add event listener to the toggle Text button
-document.getElementById('toggleTextButton').addEventListener('click', toggleTextVisibility);
 
 // Add event listener to the slider to update thresholdDistance
 document.getElementById('distanceSlider').addEventListener('input', function(event) {
