@@ -27,6 +27,10 @@ const smoothingFactor = 0.2; // Weight given for smoothing (0 < sFactor <= 1). L
 const headingChangeThreshold = 5; // Minimum change in degrees to trigger an update
 let previousHeading = null; // Store the previous heading value
 
+// Check if the brower is ready for WebXR
+let motionReady = false;
+let gpsReady = false;
+
 let thresholdDistance = 3000; // Default value (Dynamic via Slider)
 
 let currentlyExpandedPOI = null;
@@ -157,7 +161,6 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
   // offset
   let textYOffset = imageHeight + 2.0*reverseScale; //offset - image height  & scaled margin
-  // textParent.setAttribute('position', `0 ${textYOffset} 0`);
   textParent.setAttribute('position', `0 ${textYOffset} 0`);
 
   // Shorten the text to the first two words and add "..." if there are more than two words
@@ -171,12 +174,13 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     const text = document.createElement('a-text');
     text.classList.add('poi-text'); // Add a class to identify the text
 
-    text.addEventListener('loaded', () => {
-      text.setAttribute('text', {
-        value: shortenedText || 'Default Text',
-        color: 'black',
-        align: 'center'
-      });
+    text.setAttribute('text', {
+      value: shortenedText || 'Default Text',
+      color: 'black',
+      align: 'center',
+      wrapCount: 57, // Preventing Wrapping. Optional: Adjust the number of characters per line
+      font: 'roboto', // Optional: Use a specific font
+      baseline: 'center'
     });
 
     text.setAttribute('position', `0 0 0`);
@@ -389,7 +393,7 @@ AFRAME.registerComponent('text-background', {
     const textHeight = textData.height || charWidth; // Default height if not set
     const padding = this.data.padding;
 
-    // console.log("Text Width: ", textWidth, "Text Height: ", textHeight);
+    console.log("Text Width: ", textWidth, "Text Height: ", textHeight);
     // Set the background size based on the text dimensions and padding
     backgroundEl.setAttribute('width', textWidth + padding * 2);
     backgroundEl.setAttribute('height', textHeight + padding);
@@ -529,6 +533,7 @@ function updateGPS() {
         // Values from GPS Hardware
         lat = position.coords.latitude;
         lon = position.coords.longitude; 
+        gpsReady = true; 
 
         // Initialize Kalman filters for latitude and longitude (Noise Reduction)
         const kalmanLat = new KalmanFilter({ R: 0.01, Q: 3 });
@@ -541,11 +546,13 @@ function updateGPS() {
         // Call updateDisplay based on useFilteredData boolean
         if (!useFilteredData) {
           updateDisplay();
+          updateOverlayTextWhenReady();
         } else {// if useFilteredData is true, UpdateDisplay when the change exceeds the threshold
           if (previousLat === null || previousLon === null || 
               Math.abs(filteredLat - previousLat) > changeThreshold || 
               Math.abs(filteredLon - previousLon) > changeThreshold) {
             updateDisplay();
+            updateOverlayTextWhenReady();
             previousLat = filteredLat;
             previousLon = filteredLon;
           }
@@ -1003,12 +1010,6 @@ function initSceneView() {
 // Update Heading Function
 function updateHeading(event) {
   if (event.alpha !== null) {
-    // Check if the compass is reliable
-    // if (!isCompassReliable(event)) {
-    //   console.warn("Compass data is unreliable. Skipping heading update.");
-    //   debugOverlay.innerHTML = "Compass data is unreliable. Falling back to GPS.";
-    //   return; // Exit the function if the compass is unreliable
-    // }
 
     // Calculate the raw heading
     const rawHeading = 360 - event.alpha; // Convert to compass heading
@@ -1035,7 +1036,8 @@ function updateHeading(event) {
       previousHeading === null || Math.abs(smoothedHeading - previousHeading) > headingChangeThreshold;
 
     // Always update the overlay text with the latest heading and GPS data
-    updateOverlayText();
+    motionReady = true;
+    updateOverlayTextWhenReady();
 
     // Trigger `updateDisplay` only if it's the first heading or there is a significant change in both
     if (previousHeading === null || (headingSignificantChange && gpsSignificantChange)) {
@@ -1066,6 +1068,12 @@ function isCompassReliable(event) {
   return true;
 }
 
+function updateOverlayTextWhenReady() {
+  if (motionReady && gpsReady) {
+    updateOverlayText();
+  }
+}
+
 function updateOverlayText() {
   const gpsLat = useFilteredData ? filteredLat : lat;
   const gpsLon = useFilteredData ? filteredLon : lon;
@@ -1086,7 +1094,10 @@ function requestIOSPermissions() {
       .then((response) => {
         if (response === "granted") {
           console.log("Motion permission granted.");
+          
+          debugOverlay.innerHTML = "";
           window.addEventListener("deviceorientation", updateHeading, true);
+          updateOverlayTextWhenReady();
         } else {
           console.error("Motion permission denied.");
           debugOverlay.innerHTML = "Motion permission denied.";
@@ -1094,11 +1105,13 @@ function requestIOSPermissions() {
       })
       .catch((error) => {
         console.error("Error requesting motion permission:", error);
-        debugOverlay.innerHTML = "Error requesting motion permission.";
+        // debugOverlay.innerHTML = "Error requesting motion permission.";
+      
       });
   } else {
     console.log("DeviceMotionEvent.requestPermission not supported.");
     window.addEventListener("deviceorientation", updateHeading, true);
+    updateOverlayTextWhenReady(); // Explicitly update the debug text
   }
 }
 
