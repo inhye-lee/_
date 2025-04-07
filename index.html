@@ -8,6 +8,7 @@
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.32/"></script>
   <!-- Include Kalman Filter library via CDN -->
@@ -241,7 +242,6 @@
   <div id="my-ar-container"></div>
   <div id="debug-overlay">Fetching GPS...</div>
   <div id="loadingIndicator">Loading Points of Interest Near You</div>
-  <button id="toggleTextButton">All T</button>
   <div id="control-container">
     <button id="toggleGPSButton">Use Raw GPS</button>
     <div id="slider-container">
@@ -265,8 +265,21 @@
       position="0 3 -5"
   ></a-text>
       </a-entity>
-      <!-- <a-camera gps-camera rotation-reader></a-camera> -->
-    <a-camera gps-camera rotation-reader raycaster="objects: .clickable; near: 0.1; far: 100000; rayOrigin: mouse" cursor="fuse: false"></a-camera>
+      <a-camera gps-camera rotation-reader 
+      id="raycaster-camera"
+      raycaster="objects: .clickable; recursive: true; near: 0.1; far: 100000" 
+      raycaster-handler>
+        <a-entity
+          id="raycaster-entity"
+          cursor="fuse: false; rayOrigin: mouse"
+          geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+          material="color: black; shader: flat"
+          position="0 0 -1"
+          visible ="false"
+          raycaster="objects: .clickable; near: 0.1; far: 100000"
+          >
+        </a-entity>
+    </a-camera>
 </a-scene>
 
   <div id="bottom-container">
