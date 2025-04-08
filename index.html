@@ -37,15 +37,6 @@
       width: 100px;
     }
 
-    #toggleTextButton {
-      background-color: #007BFF;
-      width: 70px;
-      position: absolute; /* Position it absolutely */
-      top: 30px; /* Distance from the top */
-      right: 10px; /* Distance from the right */
-      z-index: 1001; /* Ensure it is above the debug-overlay (z-index: 1000) */
-    }
-
     button {
       flex-shrink: 0;
       color: white; /* White text */
@@ -240,7 +231,7 @@
 <body>
 
   <div id="my-ar-container"></div>
-  <div id="debug-overlay">Fetching GPS...</div>
+  <div id="debug-overlay">Fetching GPS and Compass Data...</div>
   <div id="loadingIndicator">Loading Points of Interest Near You</div>
   <div id="control-container">
     <button id="toggleGPSButton">Use Raw GPS</button>
