@@ -1066,77 +1066,48 @@ function isCompassReliable(event) {
   return true;
 }
 
-
+// Update Debug overlay when gps and motion data are available
 function updateOverlayText() {
   debugOverlay.innerHTML = ""; // Clear previous overlay text;
-  if (gpsReady & motionReady) {
-    const gpsLat = useFilteredData ? filteredLat : lat;
-    const gpsLon = useFilteredData ? filteredLon : lon;
-  
-    const overlayText = `
-    Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
-    WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
-    Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, \n
-    Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
-  `;
+
+  const gpsLat = useFilteredData ? filteredLat : lat;
+  const gpsLon = useFilteredData ? filteredLon : lon;
+
+  let overlayText;
+
+  if (gpsReady && motionReady) {
+    // Both GPS and motion data are ready
+    overlayText = `
+      Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
+      WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
+      Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, 
+      Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
+    `;
+    debugOverlay.innerHTML = overlayText;
+  } else if (gpsReady) {
+    // Only GPS data is ready
+    overlayText = `
+      Waiting for motion data...<br>
+      Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, 
+      Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}<br>
+    `;
+    debugOverlay.innerHTML = overlayText;
+  } else if (motionReady) {
+    // Only motion data is ready
+    overlayText = `
+      Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
+      WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
+      Waiting for GPS data...
+    `;
     debugOverlay.innerHTML = overlayText;
   } else {
+    // Neither GPS nor motion data is ready
     debugOverlay.innerHTML = "Waiting for GPS and motion data...";
   }
-
 }
 
-// Function to request motion and orientation permissions on iOS
-function requestIOSPermissions() {
-  debugOverlay.innerHTML = "Requesting motion permission...";
-
-  if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-    DeviceMotionEvent.requestPermission()
-      .then((response) => {
-        if (response === "granted") {
-          console.log("Motion permission granted.");
-          
-          window.addEventListener("deviceorientation", updateHeading, true);
-          
-          debugOverlay.innerHTML = "Motion permission granted.";
-          // Explicitly refresh the debugOverlay
-          updateOverlayText();
-        } else {
-          console.error("Motion permission denied.");
-          debugOverlay.innerHTML = "Motion permission denied.";
-        }
-      })
-      .catch((error) => {
-        console.error("Error requesting motion permission:", error);
-        debugOverlay.innerHTML = "Error requesting motion permission.";
-      });
-  } else {
-    console.log("DeviceMotionEvent.requestPermission not supported.");
-    window.addEventListener("deviceorientation", updateHeading, true);
-  
-    // Explicitly refresh the debugOverlay for non-iOS devices
-    updateOverlayText();
-  }
-}
-
-// Listen for device orientation events - Request permissions on iOS
-// document.addEventListener("DOMContentLoaded", () => {
-//   if (navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("iPad")) {
-//     console.log("iOS device detected. Requesting motion permissions...");
-//     requestIOSPermissions();
-//   } else {
-//     console.log("Non-iOS device detected. Adding deviceorientation listener...");
-//     // On some devices, the deviceorientationabsolute event provides more accurate heading data. 
-//     if ("ondeviceorientationabsolute" in window) {
-//       window.addEventListener("deviceorientationabsolute", updateHeading, true);
-//     } else {
-//       window.addEventListener("deviceorientation", updateHeading, true);
-//     }
-//   }
-// });
+// Listen for device orientation events (compass)
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Non-iOS device detected. Adding deviceorientation listener...");
-  
   // On some devices, the deviceorientationabsolute event provides more accurate heading data.
   if ("ondeviceorientationabsolute" in window) {
     window.addEventListener("deviceorientationabsolute", updateHeading, true);
@@ -1145,29 +1116,55 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-//* Fix to request motion permissions on iOS
-document.addEventListener("DOMContentLoaded", () => {
-  const requestPermissionButton = document.getElementById("requestPermissionButton");
+// * ((Not used)) Request motion and orientation permissions on iOS
+// function requestIOSPermissions() {
+//   debugOverlay.innerHTML = "Requesting motion permission...";
 
-  // Check if the user is on an iOS device
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+//   if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+//     DeviceMotionEvent.requestPermission()
+//       .then((response) => {
+//         if (response === "granted") {
+//           console.log("Motion permission granted.");
+//           window.addEventListener("deviceorientation", updateHeading, true);
+//           debugOverlay.innerHTML = "Motion permission granted.";
+//           updateOverlayText();// Refresh the debugOverlay
+//         } else {
+//           console.error("Motion permission denied.");
+//           debugOverlay.innerHTML = "Motion permission denied.";
+//         }
+//       })
+//       .catch((error) => {
+//         console.error("Error requesting motion permission:", error);
+//         debugOverlay.innerHTML = "Error requesting motion permission.";
+//       });
+//   } else {
+//     console.log("DeviceMotionEvent.requestPermission not supported.");
+//     window.addEventListener("deviceorientation", updateHeading, true);
+//     updateOverlayText();// Refresh the debugOverlay for non-iOS devices
+//   }
+// }
 
-  if (isIOS) {
-    requestPermissionButton.style.display = "none";
-    // Show the button for iOS devices
-    // requestPermissionButton.style.display = "block";
+// * (Not used) Fix for iOS devices: Request permission for motion and orientation events
+// document.addEventListener("DOMContentLoaded", () => {
+//   const requestPermissionButton = document.getElementById("requestPermissionButton");
 
-    // // Add a click event listener to the button
-    // requestPermissionButton.addEventListener("click", () => {
-    //   requestIOSPermissions(); // Call the function to request permissions
-    //   requestPermissionButton.style.display = "none"; // Hide the button after it's clicked
-    // });
-  } else {
-    // Hide the button for non-iOS devices
-    requestPermissionButton.style.display = "none";
-  }
-});
+//   // Check if the user is on an iOS device
+//   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+//   if (isIOS) {
+//     // Show the button for iOS devices
+//     requestPermissionButton.style.display = "block";
+
+//     // Add a click event listener to the button
+//     requestPermissionButton.addEventListener("click", () => {
+//       requestIOSPermissions(); // Call the function to request permissions
+//       requestPermissionButton.style.display = "none"; // Hide the button after it's clicked
+//     });
+//   } else {
+//     // Hide the button for non-iOS devices
+//     requestPermissionButton.style.display = "none";
+//   }
+// });
 
 // Function to toggle the data source
 function toggleDataSource() {
@@ -1193,7 +1190,6 @@ function updateDistanceValue(distance) {
 function updatePOICounter(poiCount) {
   document.getElementById('poi-counter').textContent = `(${poiCount})`;
 }
-
 
 // Start GPS updates 
 updateGPS();
