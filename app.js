@@ -27,7 +27,7 @@ const smoothingFactor = 0.2; // Weight given for smoothing (0 < sFactor <= 1). L
 const headingChangeThreshold = 5; // Minimum change in degrees to trigger an update
 let previousHeading = null; // Store the previous heading value
 
-// Check if the brower is ready for WebXR
+// Check if the brower sensors are ready 
 let motionReady = false;
 let gpsReady = false;
 
@@ -518,12 +518,12 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   // Clear existing POIs
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
-
+  updateOverlayText();
   if (isUSStateAssigned)  // Prevent not calling the function when there is no default US state 
     {
     loadPOIData();
   }
-
+  
 }
 
 function updateGPS() { 
@@ -546,13 +546,11 @@ function updateGPS() {
         // Call updateDisplay based on useFilteredData boolean
         if (!useFilteredData) {
           updateDisplay();
-          updateOverlayTextWhenReady();
         } else {// if useFilteredData is true, UpdateDisplay when the change exceeds the threshold
           if (previousLat === null || previousLon === null || 
               Math.abs(filteredLat - previousLat) > changeThreshold || 
               Math.abs(filteredLon - previousLon) > changeThreshold) {
             updateDisplay();
-            updateOverlayTextWhenReady();
             previousLat = filteredLat;
             previousLon = filteredLon;
           }
@@ -1010,6 +1008,8 @@ function initSceneView() {
 // Update Heading Function
 function updateHeading(event) {
   if (event.alpha !== null) {
+    
+    motionReady = true; // Set motionReady to true when heading is updated
 
     // Calculate the raw heading
     const rawHeading = 360 - event.alpha; // Convert to compass heading
@@ -1021,6 +1021,7 @@ function updateHeading(event) {
     } else {
       smoothedHeading = smoothedHeading + smoothingFactor * (rawHeading - smoothedHeading); // Apply smoothing
     }
+    
     console.log("Smoothed Heading:", smoothedHeading); // Debugging log
 
     // Track if GPS location has moved significantly
@@ -1033,11 +1034,7 @@ function updateHeading(event) {
 
     // Check if the heading change exceeds the threshold
     const headingSignificantChange =
-      previousHeading === null || Math.abs(smoothedHeading - previousHeading) > headingChangeThreshold;
-
-    // Always update the overlay text with the latest heading and GPS data
-    motionReady = true;
-    updateOverlayTextWhenReady();
+    previousHeading === null || Math.abs(smoothedHeading - previousHeading) > headingChangeThreshold;    
 
     // Trigger `updateDisplay` only if it's the first heading or there is a significant change in both
     if (previousHeading === null || (headingSignificantChange && gpsSignificantChange)) {
@@ -1045,8 +1042,8 @@ function updateHeading(event) {
       console.log(
         `Significant change detected. GPS Change: ${gpsSignificantChange}, Heading Change: ${headingSignificantChange}`
       );
-      // updateDisplay(); // Trigger updateDisplay
-      
+      updateDisplay(); // Trigger updateDisplay
+     
       // Update previous values
       previousHeading = smoothedHeading;
       previousLat = gpsLat;
@@ -1057,6 +1054,7 @@ function updateHeading(event) {
     debugOverlay.innerHTML = "No compass data available.";
     console.error("Compass data is unavailable.");
   }
+  updateOverlayText();
 }
 
 //* Handling Magnetic Interference: Check if the compass accuracy is acceptable
@@ -1068,36 +1066,41 @@ function isCompassReliable(event) {
   return true;
 }
 
-function updateOverlayTextWhenReady() {
-  if (motionReady && gpsReady) {
-    updateOverlayText();
-  }
-}
 
 function updateOverlayText() {
-  const gpsLat = useFilteredData ? filteredLat : lat;
-  const gpsLon = useFilteredData ? filteredLon : lon;
+  debugOverlay.innerHTML = ""; // Clear previous overlay text;
+  if (gpsReady & motionReady) {
+    const gpsLat = useFilteredData ? filteredLat : lat;
+    const gpsLon = useFilteredData ? filteredLon : lon;
+  
+    const overlayText = `
+    Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
+    WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
+    Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, \n
+    Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
+  `;
+    debugOverlay.innerHTML = overlayText;
+  } else {
+    debugOverlay.innerHTML = "Waiting for GPS and motion data...";
+  }
 
-  const overlayText = `
-  Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
-  WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
-  Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, \n
-  Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
-`;
-  debugOverlay.innerHTML = overlayText;
 }
 
 // Function to request motion and orientation permissions on iOS
 function requestIOSPermissions() {
+  debugOverlay.innerHTML = "Requesting motion permission...";
+
   if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
     DeviceMotionEvent.requestPermission()
       .then((response) => {
         if (response === "granted") {
           console.log("Motion permission granted.");
           
-          debugOverlay.innerHTML = "";
           window.addEventListener("deviceorientation", updateHeading, true);
-          updateOverlayTextWhenReady();
+          
+          debugOverlay.innerHTML = "Motion permission granted.";
+          // Explicitly refresh the debugOverlay
+          updateOverlayText();
         } else {
           console.error("Motion permission denied.");
           debugOverlay.innerHTML = "Motion permission denied.";
@@ -1105,31 +1108,66 @@ function requestIOSPermissions() {
       })
       .catch((error) => {
         console.error("Error requesting motion permission:", error);
-        // debugOverlay.innerHTML = "Error requesting motion permission.";
-      
+        debugOverlay.innerHTML = "Error requesting motion permission.";
       });
   } else {
     console.log("DeviceMotionEvent.requestPermission not supported.");
     window.addEventListener("deviceorientation", updateHeading, true);
-    updateOverlayTextWhenReady(); // Explicitly update the debug text
+  
+    // Explicitly refresh the debugOverlay for non-iOS devices
+    updateOverlayText();
   }
 }
 
 // Listen for device orientation events - Request permissions on iOS
+// document.addEventListener("DOMContentLoaded", () => {
+//   if (navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("iPad")) {
+//     console.log("iOS device detected. Requesting motion permissions...");
+//     requestIOSPermissions();
+//   } else {
+//     console.log("Non-iOS device detected. Adding deviceorientation listener...");
+//     // On some devices, the deviceorientationabsolute event provides more accurate heading data. 
+//     if ("ondeviceorientationabsolute" in window) {
+//       window.addEventListener("deviceorientationabsolute", updateHeading, true);
+//     } else {
+//       window.addEventListener("deviceorientation", updateHeading, true);
+//     }
+//   }
+// });
 document.addEventListener("DOMContentLoaded", () => {
-  if (navigator.userAgent.includes("iPhone") || navigator.userAgent.includes("iPad")) {
-    console.log("iOS device detected. Requesting motion permissions...");
-    requestIOSPermissions();
+  console.log("Non-iOS device detected. Adding deviceorientation listener...");
+  
+  // On some devices, the deviceorientationabsolute event provides more accurate heading data.
+  if ("ondeviceorientationabsolute" in window) {
+    window.addEventListener("deviceorientationabsolute", updateHeading, true);
   } else {
-    console.log("Non-iOS device detected. Adding deviceorientation listener...");
-    // On some devices, the deviceorientationabsolute event provides more accurate heading data. 
-    if ("ondeviceorientationabsolute" in window) {
-      window.addEventListener("deviceorientationabsolute", updateHeading, true);
-    } else {
-      window.addEventListener("deviceorientation", updateHeading, true);
-    }
+    window.addEventListener("deviceorientation", updateHeading, true);
   }
 });
+
+//* Fix to request motion permissions on iOS
+document.addEventListener("DOMContentLoaded", () => {
+  const requestPermissionButton = document.getElementById("requestPermissionButton");
+
+  // Check if the user is on an iOS device
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isIOS) {
+    requestPermissionButton.style.display = "none";
+    // Show the button for iOS devices
+    // requestPermissionButton.style.display = "block";
+
+    // // Add a click event listener to the button
+    // requestPermissionButton.addEventListener("click", () => {
+    //   requestIOSPermissions(); // Call the function to request permissions
+    //   requestPermissionButton.style.display = "none"; // Hide the button after it's clicked
+    // });
+  } else {
+    // Hide the button for non-iOS devices
+    requestPermissionButton.style.display = "none";
+  }
+});
+
 
 // Function to toggle the data source
 function toggleDataSource() {
@@ -1155,5 +1193,7 @@ function updateDistanceValue(distance) {
 function updatePOICounter(poiCount) {
   document.getElementById('poi-counter').textContent = `(${poiCount})`;
 }
+
+
 // Start GPS updates 
 updateGPS();
