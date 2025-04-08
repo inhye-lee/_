@@ -166,7 +166,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   // Shorten the text to the first two words and add "..." if there are more than two words
   const fullText = poi.name;
   const words = poi.name.split(' ');
-  const shortenedText = words.length > 2 ? words.slice(0, 1).join(' ') + '...' : poi.name || 'Unnamed POI';
+  const shortenedText = words.length > 0 ? words.slice(0, 1).join(' ') + '...' : poi.name || 'Unnamed POI';
 
   // Check if text already exists (*Fix for duplicate error)
   const existingText = textParent.querySelector('.poi-text');
@@ -576,6 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the ArcGIS SceneView
     initSceneView();
+
+  
   }
   start();
 });
@@ -808,14 +810,6 @@ function initSceneView() {
 
     view.ui.add(document.getElementById("cityStyle"), "bottom-left");
 
-    //********************** Compass **********************//
-    // let compass = new Compass({
-    //   view: view
-    // });
-    
-    // // Add the compass to the top left corner of the MapView
-    // view.ui.add(compass, "top-left");
-
     //********************** User Location Tracking (Blue Dot) **********************//
     const track = new Track({
       view: view
@@ -833,11 +827,14 @@ function initSceneView() {
         longitude: event.position.coords.longitude
       });
 
-      // view.goTo({
-      //   position: {
-      //     z: view.camera.position.z // Use the current zoom level
-      //   }
-      // })
+      // Update the blue dot in the WebScene
+      view.goTo({
+        position: {
+          latitude: point.latitude,
+          longitude: point.longitude,
+          z: view.camera.position.z // Maintain the current zoom level
+        }
+      });
       const locatorUrl = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
       
       // Only assign the US state once
