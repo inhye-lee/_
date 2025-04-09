@@ -211,11 +211,9 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
   entity.classList.add('clickable');
   image.classList.add('clickable'); //* Fix: clickable class had to be added to the child
-
   // Add the toggle-title attribute to the entity
-  // entity.setAttribute('toggle-title', `full: ${fullText}; short: ${shortenedText}`);
- entity.setAttribute('toggle-title', `full: ${fullText};`); // Only full text for now
-
+  entity.setAttribute('toggle-title', `full: ${fullText};`); // Only full text for now
+  entity.setAttribute('show-popup', 'content: Pop Up Data will be shown here'); // Show Pop up on click
   // Add look-at behavior after the entity is loaded
   entity.addEventListener('loaded', () => {
     if (image) {
@@ -280,23 +278,78 @@ AFRAME.registerComponent('raycaster-handler', {
   }
 });
 
-let currentlyCenteredPOI = null; // Global variable to track the currently centered POI
-let currentlySelectedPOI = null; // Global variable to track the currently clicked POI
 
-AFRAME.registerComponent('toggle-title', {
+let activePopUpPOI = null; // Global variable to track the currently active POI with a pop-up
+
+AFRAME.registerComponent('show-popup', {
   schema: {
-    full: { type: 'string', default: '' } // Full text for the POI
+    content: { type: 'string', default: 'Pop Up Data will be shown here' } // Full text for the POI
   },
 
   init: function () {
-    const el = this.el; // this POI
-    let isCentered = false; // is my POI centered?
+    const el = this.el; // The current POI
+
+    // Define the click handler
+    this.clickHandler = () => {
+      console.log('Clicked on POI:', el.id);
+      if (activePopUpPOI === el) {
+        // If this POI is already active, close its pop-up
+        console.log('Closing pop-up for:', el.id);
+        this.hidePopUp();
+        activePopUpPOI = null; // Clear the active POI
+      } else {
+        // If another POI is active, close its pop-up
+        if (activePopUpPOI) {
+          console.log('Closing previous pop-up for:', activePopUpPOI.id);
+          activePopUpPOI.components['show-popup'].hidePopUp();
+        }
+        // Show the pop-up for the current POI
+        console.log('Opening pop-up for:', el.id);
+        this.showPopUp();
+        activePopUpPOI = el; // Set the current POI as the active one
+      }
+    };
+
+    // Add the click event listener
+    el.addEventListener('click', this.clickHandler);
+  },
+
+  showPopUp: function () {
+    // console.log('Showing pop-up for:', this.el.id);
+  },
+
+  hidePopUp: function () {
+    // console.log('Hiding pop-up for:', this.el.id);
+  },
+
+  remove: function () {
+    // Remove the pop-up from the DOM when the component is removed
+
+    // Remove the click event listener
+    this.el.removeEventListener('click', this.clickHandler);
+  }
+});
+
+
+let centeredPOI = null; // Global variable to track the closest POI to the center
+
+AFRAME.registerComponent('toggle-title', {
+  schema: {
+    full: { type: 'string', default: '' }, // Full text for the POI
+    threshold: { type: 'number', default: THREE.MathUtils.degToRad(5) } // Threshold in radians (5 degrees by default)
+  },
+
+  init: function () {
+    const el = this.el; // The current POI
+    const camera = document.querySelector('[gps-camera]').object3D; // Get the camera's 3D object
+    this.camera = camera;
 
     // Get the text element and connecting line inside the POI
     const textEntity = el.querySelector('.poi-text');
     const textParent = textEntity ? textEntity.parentNode : null;
     const connectingLine = el.querySelector('.connecting-line');
 
+    // Initialize the text and connecting line visibility
     if (textParent) {
       textParent.setAttribute('visible', false); // Hide the text by default
     }
@@ -304,196 +357,73 @@ AFRAME.registerComponent('toggle-title', {
       connectingLine.setAttribute('visible', false); // Hide the connecting line by default
     }
 
-    // // Define the click handler
-    // this.clickHandler = () => {
-    //   console.log('Clicked on:', el);
-      
-    //   // If the clicked POI is the currently centered POI, do nothing
-    //   if (currentlyCenteredPOI === el || (currentlyCenteredPOI === el && currentlySelectedPOI !== el)) {
-    //     console.log('Centered POI clicked, no toggle allowed.');
-    //     isCentered = true; // Set the flag to true
-    //     return;
-    //   } else {
-    //     console.log('POI is not centered');
-    //   }
-
-    //   if (currentlySelectedPOI === null) { // If there is no other POI previously clicked 
-    //     console.log('No POI currently clicked, toggling on:', el);
-    //     // turn visible
-    //     if (textParent) {
-    //       textParent.setAttribute('visible', true); 
-    //     }
-    //     if (connectingLine) {
-    //       connectingLine.setAttribute('visible', true); 
-    //     }
-    //     currentlySelectedPOI = el; // Set the clicked POI as the currently clicked one
-    //   } else if (currentlySelectedPOI === el) { // User clicks on the same POI again, toggle if off
-    //     console.log('POI already activated, toggling off:', el);
-    //      // turn invisible
-    //      const currentTextParent = currentlySelectedPOI.querySelector('.text-parent');
-    //      const currentConnectingLine = currentlySelectedPOI.querySelector('.connecting-line');
-    //       if (currentTextParent) {
-    //         currentTextParent.setAttribute('visible', false);
-    //       }
-    //       if (currentConnectingLine) {
-    //         currentConnectingLine.setAttribute('visible', false);
-    //       }
-    //       currentlySelectedPOI = null;
-    //   } else if (currentlySelectedPOI !== el) { // User clicks on another POI while there is one already selected
-    //     console.log('Another POI is clicked, toggling off:', currentlySelectedPOI);
-    //     // Hide the previously clicked POI
-    //     const previousTextParent = currentlySelectedPOI.querySelector('.text-parent');
-    //     const previousConnectingLine = currentlySelectedPOI.querySelector('.connecting-line');
-    //     // Turn Off the Previous POI
-    //     if (previousTextParent) {
-    //       previousTextParent.setAttribute('visible', false);
-    //     }
-    //     if (previousConnectingLine) {
-    //       previousConnectingLine.setAttribute('visible', false);
-    //     }
-    //     // Turn On The New POI
-    //     if (textParent) {
-    //       textParent.setAttribute('visible', true);
-    //     }
-    //     if (connectingLine) {
-    //       connectingLine.setAttribute('visible', true);
-    //     }
-    //     currentlySelectedPOI = el; // Set the clicked POI as the currently clicked one
-    //   }
-    // }
-
-    // // // Add the click event listener
-    // el.addEventListener('click', this.clickHandler);
-
-    // Add raycaster intersection event listeners
-    el.addEventListener('raycaster-intersected', () => {
-      console.log('Raycaster intersected with:', el);
-      // If another POI is currently centered, hide it
-      if (currentlyCenteredPOI && currentlyCenteredPOI !== el) {
-        const previousTextParent = currentlyCenteredPOI.querySelector('.text-parent');
-        const previousConnectingLine = currentlyCenteredPOI.querySelector('.connecting-line');
-        if (previousTextParent) {
-          previousTextParent.setAttribute('visible', false);
-        }
-        if (previousConnectingLine) {
-          previousConnectingLine.setAttribute('visible', false);
-        }
-        console.log('Cleared previously centered POI:', currentlyCenteredPOI);
-      }
-
-      // Set this POI as the currently centered POI
-      currentlyCenteredPOI = el;
-
-      // Show the text and connecting line for the centered POI
-      if (textParent) {
-        textParent.setAttribute('visible', true);
-      }
-      if (connectingLine) {
-        connectingLine.setAttribute('visible', true);
-      }
-      isCentered = true; // Set the flag to true
-       
-    });
-
-    el.addEventListener('raycaster-intersected-cleared', () => {
-      console.log('Raycaster cleared for:', el);
-
-      // If this POI is the currently centered POI, clear it
-      if (currentlyCenteredPOI === el) {
-        currentlyCenteredPOI = null;
-
-        // Hide the text and connecting line
-        if (textParent) {
-          textParent.setAttribute('visible', false);
-        }
-        if (connectingLine) {
-          connectingLine.setAttribute('visible', false);
-        }
-      }
-    });
-
+    this.textParent = textParent;
+    this.connectingLine = connectingLine;
   },
 
-  remove: function () {
-    // Remove the click event listener when the component is removed
-    if (this.clickHandler) {
-      this.el.removeEventListener('click', this.clickHandler);
+  tick: function () {
+    const camera = this.camera;
+    const threshold = this.data.threshold;
+
+    // Get all POIs
+    const pois = document.querySelectorAll('.clickable');
+    let smallestAngle = Infinity;
+
+    pois.forEach((poi) => {
+      const position = new THREE.Vector3();
+      poi.object3D.getWorldPosition(position);
+
+      // Calculate the direction vector from the camera to the POI
+      const directionToPOI = new THREE.Vector3();
+      directionToPOI.subVectors(position, camera.position).normalize();
+
+      // Get the camera's forward direction
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection);
+
+      // Calculate the horizontal angle between the camera's forward direction and the POI
+      const horizontalAngle = Math.atan2(directionToPOI.x, directionToPOI.z);
+      const cameraHorizontalAngle = Math.atan2(cameraDirection.x, cameraDirection.z);
+
+      // Calculate the absolute difference between the angles
+      const angleDifference = Math.abs(
+        ((horizontalAngle - cameraHorizontalAngle + Math.PI) % (2 * Math.PI))
+      );
+
+      // Check if this POI is closer to the center than the current closest POI
+      if (angleDifference < smallestAngle && angleDifference <= threshold) {
+        smallestAngle = angleDifference;
+        centeredPOI = poi;
+      }
+    });
+
+    // Update visibility for the current POI
+    if (this.el === centeredPOI) {
+      this.showTitle(); // Always show the title for the centered POI
+    } else {
+      this.hideTitle(); // Hide the title if the POI is not centered
+    }
+  },
+
+  showTitle: function () {
+    console.log(`Showing title for: ${this.el.id}`);
+    if (this.textParent) {
+      this.textParent.setAttribute('visible', true); // Show the text
+    }
+    if (this.connectingLine) {
+      this.connectingLine.setAttribute('visible', true); // Show the connecting line
+    }
+  },
+
+  hideTitle: function () {
+    if (this.textParent) {
+      this.textParent.setAttribute('visible', false); // Hide the text
+    }
+    if (this.connectingLine) {
+      this.connectingLine.setAttribute('visible', false); // Hide the connecting line
     }
   }
 });
-
-// AFRAME.registerComponent('toggle-title', {
-//   schema: {
-//     full: { type: 'string', default: '' }, // Full text for the POI
-//     short: { type: 'string', default: '' } // Shortened text for the POI
-//   },
-
-//   init: function () {
-//     const el = this.el;
-
-//     if (!this.clickHandler) {
-//       this.clickHandler = function (evt) {
-//         evt.stopPropagation(); // Prevent the event from propagating to parent elements
-//         console.log("Clicked item is", el);
-
-//         // Get the text element inside the clicked entity
-//         const textEntity = el.querySelector('.poi-text');
-//         const textParent = textEntity.parentNode; // Get the parent entity of the text
-//         const connectingLine = el.querySelector('.connecting-line'); // Select the connecting line by its class
-//         const isTextVisible = textParent.getAttribute('visible') === 'true';
-
-//         if (textEntity) {
-//           // Get the current text value
-//           const currentText = textEntity.getAttribute('text').value;
-
-//           // Get text from attributes directly
-//           const fullText = el.getAttribute('toggle-title').full;
-//           const shortenedText = el.getAttribute('toggle-title').short;
-
-//           // Collapse the previously expanded POI
-//           if (currentlyExpandedPOI && currentlyExpandedPOI !== el) {
-//             const previousTextEntity = currentlyExpandedPOI.querySelector('.poi-text');
-//             const previousTextParent = previousTextEntity.parentNode;
-//             const previousConnectingLine = currentlyExpandedPOI.querySelector('.connecting-line'); // Get the previous connecting line
-//             if (previousTextEntity) {
-//               const previousShortText = currentlyExpandedPOI.getAttribute('toggle-title').short;
-//               previousTextEntity.setAttribute('text', 'value', previousShortText);
-//               previousTextParent.setAttribute('visible', false); // Hide the textParent for the previous POI
-//               if (previousConnectingLine) {
-//                 previousConnectingLine.setAttribute('visible', false); // Hide the connecting line for the previous POI
-//               }
-//             }
-//           }
-
-//           // Toggle between full text and shortened text
-//           const newText = currentText === shortenedText ? fullText : shortenedText;
-
-//           // Update the text value
-//           textEntity.setAttribute('text', 'value', newText);
-
-//           // Update the visibility of the textParent and connectingLine
-//           const isVisible = newText === fullText;
-//           textParent.setAttribute('visible', isVisible);
-//           if (connectingLine) {
-//             connectingLine.setAttribute('visible', isVisible); // Sync connecting line visibility with textParent
-//           }
-
-//           // Update the currently expanded POI
-//           currentlyExpandedPOI = isVisible ? el : null;
-//         }
-//       };
-
-//       el.addEventListener('click', this.clickHandler);
-//     }
-//   },
-
-//   remove: function () {
-//     // Remove the event listener when the component is removed
-//     if (this.clickHandler) {
-//       this.el.removeEventListener('click', this.clickHandler);
-//     }
-//   }
-// });
 
 AFRAME.registerComponent('text-background', {
   schema: {
@@ -1209,7 +1139,7 @@ function isCompassReliable(event) {
 
 // Update Debug overlay when gps and motion data are available
 function updateOverlayText() {
-  debugOverlay.innerHTML = ""; // Clear previous overlay text;
+  // debugOverlay.innerHTML = ""; // Clear previous overlay text;
 
   const gpsLat = useFilteredData ? filteredLat : lat;
   const gpsLon = useFilteredData ? filteredLon : lon;
