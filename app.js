@@ -282,58 +282,16 @@ AFRAME.registerComponent('raycaster-handler', {
 });
 
 let activePopUpPOI = null; // Global variable to track the currently active POI with a pop-up
+let centeredPOI = null; // Variable to track the currently centered POI
 
-AFRAME.registerComponent('show-popup', {
-  schema: {
-    content: { type: 'string', default: 'Pop Up Data will be shown here' } // Full text for the POI
-  },
-
-  init: function () {
-    const el = this.el; // The current POI
-
-    // Define the click handler
-    this.clickHandler = () => {
-      console.log('Clicked on POI:', el.id);
-      if (activePopUpPOI === el) {
-        // If this POI is already active, close its pop-up
-        console.log('Closing pop-up for:', el.id);
-        this.hidePopUp();
-        activePopUpPOI = null; // Clear the active POI
-      } else {
-        // If another POI is active, close its pop-up
-        if (activePopUpPOI) {
-          console.log('Closing previous pop-up for:', activePopUpPOI.id);
-          activePopUpPOI.components['show-popup'].hidePopUp();
-        }
-        // Show the pop-up for the current POI
-        console.log('Opening pop-up for:', el.id);
-        this.showPopUp();
-        activePopUpPOI = el; // Set the current POI as the active one
-      }
-    };
-
-    // Add the click event listener
-    el.addEventListener('click', this.clickHandler);
-  },
-
-  showPopUp: function () {
-    // console.log('Showing pop-up for:', this.el.id);
-  },
-
-  hidePopUp: function () {
-    // console.log('Hiding pop-up for:', this.el.id);
-  },
-
-  remove: function () {
-    // Remove the pop-up from the DOM when the component is removed
-
-    // Remove the click event listener
-    this.el.removeEventListener('click', this.clickHandler);
-  }
-});
-
-
-let centeredPOI = null; // Global variable to track the closest POI to the center
+// Reusable debounce function
+function debounce(func, delay) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+}
 
 AFRAME.registerComponent('toggle-title', {
   schema: {
@@ -361,6 +319,14 @@ AFRAME.registerComponent('toggle-title', {
 
     this.textParent = textParent;
     this.connectingLine = connectingLine;
+
+    // State to track animation
+    this.isFadingIn = false;
+    this.isFadingOut = false;
+
+    // Debounced fadeIn and fadeOut methods
+    this.debouncedFadeIn = debounce(this.fadeIn.bind(this), 100); // N-ms debounce delay
+    this.debouncedFadeOut = debounce(this.fadeOut.bind(this), 100); // N-ms debounce delay
   },
 
   tick: function () {
@@ -368,8 +334,9 @@ AFRAME.registerComponent('toggle-title', {
     const threshold = this.data.threshold;
 
     // Get all POIs
-    const pois = document.querySelectorAll('.clickable');
+    const pois = Array.from(document.querySelectorAll('.clickable'));
     let smallestAngle = Infinity;
+    let centeredPOI = null;
 
     pois.forEach((poi) => {
       const position = new THREE.Vector3();
@@ -393,103 +360,305 @@ AFRAME.registerComponent('toggle-title', {
       );
 
       // Check if this POI is closer to the center than the current closest POI
-      if (angleDifference < smallestAngle && angleDifference <= threshold) {
+      if (angleDifference < smallestAngle) {
         smallestAngle = angleDifference;
         centeredPOI = poi;
       }
     });
 
-    // Update visibility for the current POI
-    if (this.el === centeredPOI) {
-      this.fadeIn(); // Always show the title for the centered POI
+    // Check if the closest POI is within the threshold
+    if (smallestAngle <= threshold) {
+      // Activate the centered POI
+      if (this.el === centeredPOI) {
+        this.debouncedFadeIn(); // Use debounced fadeIn
+      } else {
+        this.debouncedFadeOut(); // Use debounced fadeOut
+      }
     } else {
-      this.fadeOut(); // Hide the title if the POI is not centered
+      // No POI is within the threshold, fallback to the closest POI
+      if (this.el === centeredPOI) {
+        this.debouncedFadeIn(); // Use debounced fadeIn
+      } else {
+        this.debouncedFadeOut(); // Use debounced fadeOut
+      }
     }
   },
 
   fadeIn: function () {
+    if (this.isFadingIn || this.isFadingOut) return; // Prevent overlapping fading animations
+    this.isFadingIn = true;
+    this.isFadingOut = false; // Reset fade-out state
+
     if (this.textParent) {
       const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
       const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
-  
+
       if (textElement) {
         textElement.setAttribute('visible', true); // Make the text visible
         textElement.setAttribute('animation__fadein', {
           property: 'opacity',
           to: 1,
-          dur: 500, // Duration of fade-in (1000ms)
+          dur: 500, // Duration of fade-in (500ms)
           easing: 'easeInOutQuad'
         });
       }
-  
+
       if (backgroundElement) {
         backgroundElement.setAttribute('visible', true); // Make the background visible
         backgroundElement.setAttribute('animation__fadein', {
           property: 'opacity',
-          to: 0.9, // Target opacity for the background
-          dur: 500, // Duration of fade-in (1000ms)
+          to: 1, // Target opacity for the background
+          dur: 500, // Duration of fade-in (500ms)
           easing: 'easeInOutQuad'
         });
       }
-  
+
       this.textParent.setAttribute('visible', true); // Ensure the parent is visible
     }
-  
+
     if (this.connectingLine) {
       this.connectingLine.setAttribute('visible', true); // Make the connecting line visible
       this.connectingLine.setAttribute('animation__fadein', {
         property: 'opacity',
         to: 1,
-        dur: 500, // Duration of fade-in (1000ms)
+        dur: 500, // Duration of fade-in (500ms)
         easing: 'easeInOutQuad'
       });
     }
+
+    setTimeout(() => {
+      this.isFadingIn = false; // Reset fade-in state after animation
+    }, 500);
   },
-  
+
   fadeOut: function () {
+    if (this.isFadingIn || this.isFadingOut) return; // Prevent overlapping fading animations
+    this.isFadingOut = true;
+    this.isFadingIn = false; // Reset fade-in state
+
     if (this.textParent) {
-      //opacity has to be set on child elements level
       const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
       const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
+
       if (textElement) {
         textElement.setAttribute('animation__fadeout', {
           property: 'opacity',
           to: 0,
-          dur: 0, // Duration of fade-out (500ms)
+          dur: 500, // Duration of fade-out (500ms)
           easing: 'easeInOutQuad'
         });
         setTimeout(() => {
           textElement.setAttribute('visible', false); // Hide the text after fade-out
-        }, 0); // Match the duration of the fade-out animation
+        }, 500); // Match the duration of the fade-out animation
       }
-  
+
       if (backgroundElement) {
         backgroundElement.setAttribute('animation__fadeout', {
           property: 'opacity',
           to: 0,
-          dur: 0, // Duration of fade-out (500ms)
+          dur: 500, // Duration of fade-out (500ms)
           easing: 'easeInOutQuad'
         });
         setTimeout(() => {
           backgroundElement.setAttribute('visible', false); // Hide the background after fade-out
-        }, 0); // Match the duration of the fade-out animation
+        }, 500); // Match the duration of the fade-out animation
       }
+
       this.textParent.setAttribute('visible', false); // Hide the parent container
     }
-  
+
     if (this.connectingLine) {
       this.connectingLine.setAttribute('animation__fadeout', {
         property: 'opacity',
         to: 0,
-        dur: 0, // Duration of fade-out (500ms)
+        dur: 0, // Immediate fade-out - Prevent Lingering line issue
         easing: 'easeInOutQuad'
       });
       setTimeout(() => {
         this.connectingLine.setAttribute('visible', false); // Hide the connecting line after fade-out
-      }, 0); // Match the duration of the fade-out animation
+      }, 0); // Immediate fade-out - Prevent Lingering line issue
     }
+
+    setTimeout(() => {
+      this.isFadingOut = false; // Reset fade-out state after animation
+    }, 500);
   }
 });
+
+// * Previously used to show the title of the POI when it is centered
+// AFRAME.registerComponent('toggle-title', {
+//   schema: {
+//     full: { type: 'string', default: '' }, // Full text for the POI
+//     threshold: { type: 'number', default: THREE.MathUtils.degToRad(5) } // Threshold in radians (5 degrees by default)
+//   },
+
+//   init: function () {
+//     const el = this.el; // The current POI
+//     const camera = document.querySelector('[gps-camera]').object3D; // Get the camera's 3D object
+//     this.camera = camera;
+
+//     // Get the text element and connecting line inside the POI
+//     const textEntity = el.querySelector('.poi-text');
+//     const textParent = textEntity ? textEntity.parentNode : null;
+//     const connectingLine = el.querySelector('.connecting-line');
+
+//     // Initialize the text and connecting line visibility
+//     if (textParent) {
+//       textParent.setAttribute('visible', false); // Hide the text by default
+//     }
+//     if (connectingLine) {
+//       connectingLine.setAttribute('visible', false); // Hide the connecting line by default
+//     }
+
+//     this.textParent = textParent;
+//     this.connectingLine = connectingLine;
+
+//     // State to track animation
+//     this.isFading = false; // Tracks if the POI is currently fading in or out
+//   },
+
+//   tick: function () {
+//     const camera = this.camera;
+//     const threshold = this.data.threshold;
+
+//     // Get all POIs
+//     const pois = document.querySelectorAll('.clickable');
+//     let smallestAngle = Infinity;
+
+//     pois.forEach((poi) => {
+//       const position = new THREE.Vector3();
+//       poi.object3D.getWorldPosition(position);
+
+//       // Calculate the direction vector from the camera to the POI
+//       const directionToPOI = new THREE.Vector3();
+//       directionToPOI.subVectors(position, camera.position).normalize();
+
+//       // Get the camera's forward direction
+//       const cameraDirection = new THREE.Vector3();
+//       camera.getWorldDirection(cameraDirection);
+
+//       // Calculate the horizontal angle between the camera's forward direction and the POI
+//       const horizontalAngle = Math.atan2(directionToPOI.x, directionToPOI.z);
+//       const cameraHorizontalAngle = Math.atan2(cameraDirection.x, cameraDirection.z);
+
+//       // Calculate the absolute difference between the angles
+//       const angleDifference = Math.abs(
+//         ((horizontalAngle - cameraHorizontalAngle + Math.PI) % (2 * Math.PI))
+//       );
+
+//       // Check if this POI is closer to the center than the current closest POI
+//       if (angleDifference < smallestAngle && angleDifference <= threshold) {
+//         smallestAngle = angleDifference;
+//         centeredPOI = poi;
+//       }
+//     });
+
+//     // Update visibility for the current POI
+//     if (this.el === centeredPOI) {
+//       this.fadeIn(); // Always show the title for the centered POI
+//     } else {
+//       this.fadeOut(); // Hide the title if the POI is not centered
+//     }
+//   },
+
+//   fadeIn: function () {
+//     if (this.isFading) return; // Prevent overlapping animations
+//     this.isFading = true; // Mark as fading
+
+//     if (this.textParent) {
+//       const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
+//       const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
+
+//       if (textElement) {
+//         textElement.setAttribute('visible', true); // Make the text visible
+//         textElement.setAttribute('animation__fadein', {
+//           property: 'opacity',
+//           to: 1,
+//           dur: 500, // Duration of fade-in (500ms)
+//           easing: 'easeInOutQuad'
+//         });
+//       }
+
+//       if (backgroundElement) {
+//         backgroundElement.setAttribute('visible', true); // Make the background visible
+//         backgroundElement.setAttribute('animation__fadein', {
+//           property: 'opacity',
+//           to: 0.9, // Target opacity for the background
+//           dur: 500, // Duration of fade-in (500ms)
+//           easing: 'easeInOutQuad'
+//         });
+//       }
+
+//       this.textParent.setAttribute('visible', true); // Ensure the parent is visible
+//     }
+
+//     if (this.connectingLine) {
+//       this.connectingLine.setAttribute('visible', true); // Make the connecting line visible
+//       this.connectingLine.setAttribute('animation__fadein', {
+//         property: 'opacity',
+//         to: 1,
+//         dur: 500, // Duration of fade-in (500ms)
+//         easing: 'easeInOutQuad'
+//       });
+//     }
+
+//     setTimeout(() => {
+//       this.isFading = false; // Reset fading state after fade-in
+//     }, 500);
+//   },
+
+//   fadeOut: function () {
+//     if (this.isFading) return; // Prevent overlapping animations
+//     this.isFading = true; // Mark as fading
+
+//     if (this.textParent) {
+//       const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
+//       const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
+
+//       if (textElement) {
+//         textElement.setAttribute('animation__fadeout', {
+//           property: 'opacity',
+//           to: 0,
+//           dur: 500, // Duration of fade-out (500ms)
+//           easing: 'easeInOutQuad'
+//         });
+//         setTimeout(() => {
+//           textElement.setAttribute('visible', false); // Hide the text after fade-out
+//         }, 500); // Match the duration of the fade-out animation
+//       }
+
+//       if (backgroundElement) {
+//         backgroundElement.setAttribute('animation__fadeout', {
+//           property: 'opacity',
+//           to: 0,
+//           dur: 500, // Duration of fade-out (500ms)
+//           easing: 'easeInOutQuad'
+//         });
+//         setTimeout(() => {
+//           backgroundElement.setAttribute('visible', false); // Hide the background after fade-out
+//         }, 500); // Match the duration of the fade-out animation
+//       }
+
+//       this.textParent.setAttribute('visible', false); // Hide the parent container
+//     }
+
+//     if (this.connectingLine) {
+//       this.connectingLine.setAttribute('animation__fadeout', {
+//         property: 'opacity',
+//         to: 0,
+//         dur: 0, // * Fix for lingering line issue
+//         easing: 'easeInOutQuad'
+//       });
+//       setTimeout(() => {
+//         this.connectingLine.setAttribute('visible', false); // Hide the connecting line after fade-out
+//       }, 0); //  * Fix for lingering line issue
+//     }
+
+//     setTimeout(() => {
+//       this.isFading = false; // Reset fading state after fade-out
+//     }, 500);
+//   }
+// });
 
 AFRAME.registerComponent('text-background', {
   schema: {
