@@ -103,6 +103,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
   const proportionalScale = calculateProportionalScale(distance); 
   const reverseScale = calculateReverseScale(distance); 
+  const lineScale = calculateLineScale(distance);
 
   // Image Source for Label
   let imageSrc;
@@ -160,7 +161,9 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   textParent.classList.add('text-parent')
 
   // offset
-  let textYOffset = imageHeight + 2.0*reverseScale; //offset - image height  & scaled margin
+  let textYOffset = imageHeight + 0.25*reverseScale + 0.25*lineScale; //offset - image height  & scaled margin
+  // Reverse scale adds an identical offset to the end user
+  // Limit textYOffset to ensure it fits within the screen
   textParent.setAttribute('position', `0 ${textYOffset} 0`);
 
   // Shorten the text to the first two words and add "..." if there are more than two words
@@ -176,7 +179,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
     text.setAttribute('text', {
       value: fullText || 'Default Text',
-      color: 'black',
+      color: 'white',
       align: 'center',
       wrapCount: 57, // Preventing Wrapping. Optional: Adjust the number of characters per line
       font: 'roboto', // Optional: Use a specific font
@@ -186,7 +189,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     text.setAttribute('position', `0 0 0`);
     text.setAttribute('rotation', '0 0 0'); // Adjust rotation for diagonal display
     text.setAttribute('text-background', {
-      color: 'white',
+      color: 'black',
       padding: 0.2,
       opacity: 0.9
     }); // Apply the custom component
@@ -199,7 +202,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   entity.appendChild(textParent);
 
   // (4) Connecting Line
-  const connectingLine = createLine(entity, { x: 0, y: textYOffset-0.15, z: 0 }, { x: 0, y: imageYOffset+imageHeight/2, z: 0 }, 'white');
+  const connectingLine = createLine(entity, { x: 0, y: textYOffset -0.14*reverseScale, z: 0 }, { x: 0, y: imageYOffset+imageHeight/2, z: 0 }, 'white');
   connectingLine.setAttribute('visible', false); // Hide the line by default
 
   // Apply reverse scaling based on Distance
@@ -277,7 +280,6 @@ AFRAME.registerComponent('raycaster-handler', {
     });
   }
 });
-
 
 let activePopUpPOI = null; // Global variable to track the currently active POI with a pop-up
 
@@ -399,35 +401,99 @@ AFRAME.registerComponent('toggle-title', {
 
     // Update visibility for the current POI
     if (this.el === centeredPOI) {
-      this.showTitle(); // Always show the title for the centered POI
+      this.fadeIn(); // Always show the title for the centered POI
     } else {
-      this.hideTitle(); // Hide the title if the POI is not centered
+      this.fadeOut(); // Hide the title if the POI is not centered
     }
   },
 
-  showTitle: function () {
-    console.log(`Showing title for: ${this.el.id}`);
+  fadeIn: function () {
     if (this.textParent) {
-      this.textParent.setAttribute('visible', true); // Show the text
+      const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
+      const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
+  
+      if (textElement) {
+        textElement.setAttribute('visible', true); // Make the text visible
+        textElement.setAttribute('animation__fadein', {
+          property: 'opacity',
+          to: 1,
+          dur: 500, // Duration of fade-in (1000ms)
+          easing: 'easeInOutQuad'
+        });
+      }
+  
+      if (backgroundElement) {
+        backgroundElement.setAttribute('visible', true); // Make the background visible
+        backgroundElement.setAttribute('animation__fadein', {
+          property: 'opacity',
+          to: 0.9, // Target opacity for the background
+          dur: 500, // Duration of fade-in (1000ms)
+          easing: 'easeInOutQuad'
+        });
+      }
+  
+      this.textParent.setAttribute('visible', true); // Ensure the parent is visible
     }
+  
     if (this.connectingLine) {
-      this.connectingLine.setAttribute('visible', true); // Show the connecting line
+      this.connectingLine.setAttribute('visible', true); // Make the connecting line visible
+      this.connectingLine.setAttribute('animation__fadein', {
+        property: 'opacity',
+        to: 1,
+        dur: 500, // Duration of fade-in (1000ms)
+        easing: 'easeInOutQuad'
+      });
     }
   },
-
-  hideTitle: function () {
+  
+  fadeOut: function () {
     if (this.textParent) {
-      this.textParent.setAttribute('visible', false); // Hide the text
+      //opacity has to be set on child elements level
+      const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
+      const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
+      if (textElement) {
+        textElement.setAttribute('animation__fadeout', {
+          property: 'opacity',
+          to: 0,
+          dur: 0, // Duration of fade-out (500ms)
+          easing: 'easeInOutQuad'
+        });
+        setTimeout(() => {
+          textElement.setAttribute('visible', false); // Hide the text after fade-out
+        }, 0); // Match the duration of the fade-out animation
+      }
+  
+      if (backgroundElement) {
+        backgroundElement.setAttribute('animation__fadeout', {
+          property: 'opacity',
+          to: 0,
+          dur: 0, // Duration of fade-out (500ms)
+          easing: 'easeInOutQuad'
+        });
+        setTimeout(() => {
+          backgroundElement.setAttribute('visible', false); // Hide the background after fade-out
+        }, 0); // Match the duration of the fade-out animation
+      }
+      this.textParent.setAttribute('visible', false); // Hide the parent container
     }
+  
     if (this.connectingLine) {
-      this.connectingLine.setAttribute('visible', false); // Hide the connecting line
+      this.connectingLine.setAttribute('animation__fadeout', {
+        property: 'opacity',
+        to: 0,
+        dur: 0, // Duration of fade-out (500ms)
+        easing: 'easeInOutQuad'
+      });
+      setTimeout(() => {
+        this.connectingLine.setAttribute('visible', false); // Hide the connecting line after fade-out
+      }, 0); // Match the duration of the fade-out animation
     }
   }
 });
 
 AFRAME.registerComponent('text-background', {
   schema: {
-    color: { type: 'string', default: 'white' }, // Background color
+    color: { type: 'string', default: 'black' }, // Background color
     padding: { type: 'number', default: 0.2 },  // Padding around the text
     opacity: { type: 'number', default: 0.9 }   // Background opacity
   },
@@ -504,8 +570,20 @@ function calculateProportionalScale(distance) {
     const adjustedScale = goalScale * (goalDistance / distance);
     return adjustedScale;
 }
-  
 
+function calculateLineScale(distance) {
+  const baseDistance = 1000; 
+  const baseScale = 1.0;
+  if (distance === 0) {
+    console.warn("Distance is zero. Returning goal scale.");
+    return baseScale; // Return the goal scale for zero distance
+  }
+  // Adjust the scale to lengthen the line when POI is further away
+  const adjustedScale = baseScale * (distance/baseDistance);
+  const lineScale = adjustedScale * adjustedScale;
+  return lineScale
+}
+  
 //  // Query the FeatureLayer based on the selected State
 function loadPOIData() {
   // Show the loading indicator
