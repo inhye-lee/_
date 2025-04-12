@@ -78,33 +78,68 @@ function calculateDistance(userLat, userLon, poiLat, poiLon) {
 // }
 
 // Update the scale of an entity based on distance (Scale By Distance)
-function updateScale(entity, distance) {
-  const minScale = 100;
-  const maxScale = 300;
+// function updateScale(entity, distance) {
+//   // entity.setAttribute('scale', `5 5 5`);
+//   // if (distance > thresholdDistance) { // If further away;
+//   //   // Make it appear as a fixed size yet showing up on a direction relevant to the current user location
+//   //   // Fixed Scale - size Still responsive to the distance
+//   //   entity.setAttribute('scale', "100 100 100");
+//   //   // console.log(`Further than threshold: ${thresholdDistance}`, distance, "POI ID: ", entity.id, "scale: ", 50);
+//   // } else {    // Dynamic Scale POIs by Distance - within threshold 
+//   //   let scale;
+//   //   // Dividing 1000 by the distance is a way to create a scaling factor that inversely relates to the distance
+//   //   scale = Math.min(maxScale, Math.max(minScale, 1000 / distance));
+//   //   // scale = Math.max(200, 1000 / distance);
+//   //   entity.setAttribute('scale', `${scale} ${scale} ${scale}`);
+//   //   // console.log("NEAR distance: ", distance, "POI ID", entity.id, "scale: ", scale);
+  
+// }
 
-  if (distance > thresholdDistance) { // If further away;
-    // Make it appear as a fixed size yet showing up on a direction relevant to the current user location
-    // Fixed Scale - size Still responsive to the distance
-    entity.setAttribute('scale', "100 100 100");
-    // console.log(`Further than threshold: ${thresholdDistance}`, distance, "POI ID: ", entity.id, "scale: ", 50);
-  } else {    // Dynamic Scale POIs by Distance - within threshold 
-    let scale;
-    // Dividing 1000 by the distance is a way to create a scaling factor that inversely relates to the distance
-    scale = Math.min(maxScale, Math.max(minScale, 1000 / distance));
-    // scale = Math.max(200, 1000 / distance);
-    entity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-    // console.log("NEAR distance: ", distance, "POI ID", entity.id, "scale: ", scale);
+// scaling function to compensate the distance
+function updateScale(distance) {
+  let updatedScale; 
+  let baseScale = 60; // Scaling that works for mid-range objects
+  // Define the reference distance to clamp size for short & far
+  const farThreshold = 2000; // (Based on Testing)
+  const nearThreshold = 250; // (Based on Testing)
+
+  // Case 1: For distances greater than farThreshold
+  if (distance > farThreshold) {
+    updatedScale = baseScale * (distance / farThreshold);  // varying scale to output a fixed minimum size 
+  }  // Case 2: For distances between short and far
+  else if (distance > nearThreshold && distance <= farThreshold) {
+    updatedScale = baseScale; // A single scale used for linear-proportional scaling 
+  } // Case 3: For distances closer than the near threshold
+  else if (distance <= nearThreshold) {
+    updatedScale = baseScale * (distance / nearThreshold); // varying scale to output fixed maximum size
+  }  // Case 4: Handle invalid distances (e.g., 0 or negative)
+  else {
+    console.warn("Distance is zero or negative. Returning base scale.");
+    updatedScale = baseScale; 
   }
+  return updatedScale;
 }
 
-function createPOIEntity(poi, userLatitude, userLongitude) {
+function calculateLineScale(distance) {
+  const baseDistance = 1000; 
+  const baseScale = 1.0;
+  if (distance === 0) {
+    console.warn("Distance is zero. Returning goal scale.");
+    return baseScale; // Return the goal scale for zero distance
+  }
+  // Adjust the scale to lengthen the line when POI is further away
+  const adjustedScale = baseScale * (distance/baseDistance);
+  const lineScale = adjustedScale * adjustedScale;
+  return lineScale
+}
 
+//*REWRITING IT FOR THREE RANGES */
+function createPOIEntity(poi, userLatitude, userLongitude) {
   // Distance calculation & Scaling
   const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
-  const proportionalScale = calculateProportionalScale(distance); 
-  const reverseScale = calculateReverseScale(distance); 
+  const entityScale = updateScale(distance); // Scale based on distance (Dynamic with Clamping )
   const lineScale = calculateLineScale(distance);
-
+  
   // Image Source for Label
   let imageSrc;
   switch (selectedState) {
@@ -123,14 +158,16 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
   // Height val, offset
   const imageHeight = 2; 
-  let lineHeight = imageHeight * 1.5;
-  let lineYOffset = (lineHeight/2);
-  let imageYOffset = lineHeight - imageHeight - 0.1;
-  
+  let lineHeight = imageHeight * 1.5 ; 
+  let lineYOffset = lineHeight; // Deducted
+  let imageYOffset = lineHeight/2- imageHeight - 0.1;
+  let textYOffset = imageYOffset + imageHeight//offset
+  let connectingLineOffset = textYOffset - imageHeight/2;
+
   // (0) Entity - Create a new entity for the POI
   const entity = document.createElement('a-entity');
   entity.setAttribute('id', poi.name.replace(/\s+/g, '-').toLowerCase());
-  entity.setAttribute('position', `0 0 0`);
+  entity.setAttribute('position', `0 0 0`); // Entity cannot be translated (Child elements have to be)
   entity.setAttribute('visible', true);
   entity.setAttribute('look-at', '[gps-camera]'); // Look at the camera
 
@@ -161,15 +198,18 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   textParent.classList.add('text-parent')
 
   // offset
-  let textYOffset = imageHeight + 0.25*reverseScale + 0.25*lineScale; //offset - image height  & scaled margin
+
   // Reverse scale adds an identical offset to the end user
   // Limit textYOffset to ensure it fits within the screen
   textParent.setAttribute('position', `0 ${textYOffset} 0`);
 
-  // Shorten the text to the first two words and add "..." if there are more than two words
-  const fullText = poi.name;
-  const words = poi.name.split(' ');
-  const shortenedText = words.length > 0 ? words.slice(0, 1).join(' ') + '...' : poi.name || 'Unnamed POI';
+  // Format the distance (e.g., "100 m" or "1.2 km")
+  const formattedDistance = distance >= 1000
+    ? `${(distance / 1000).toFixed(1)} km`
+    : `${Math.round(distance)} m`;
+
+// Combine POI name, distance, and screen size
+const fullText = `${poi.name} (${formattedDistance})`;
 
   // Check if text already exists (*Fix for duplicate error)
   const existingText = textParent.querySelector('.poi-text');
@@ -202,15 +242,16 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   entity.appendChild(textParent);
 
   // (4) Connecting Line
-  const connectingLine = createLine(entity, { x: 0, y: textYOffset -0.14*reverseScale, z: 0 }, { x: 0, y: imageYOffset+imageHeight/2, z: 0 }, 'white');
+  const connectingLine = createLine(entity, { x: 0, y: textYOffset-0.2*2, z: 0 }, { x: 0, y: connectingLineOffset, z: 0 }, 'white');
   connectingLine.setAttribute('visible', false); // Hide the line by default
 
   // Apply reverse scaling based on Distance
-  textParent.setAttribute('scale', `${reverseScale} ${reverseScale} ${reverseScale}`);
+  textParent.setAttribute('scale', `${200/entityScale} ${200/entityScale} ${200/entityScale}`);
+  textParent.setAttribute('position', `0 ${textYOffset} 0`); // Position the text parent on top of the line
 
   entity.setAttribute('gps-entity-place', `latitude: ${poi.latitude}; longitude: ${poi.longitude};`);
-  // Update Entity Scaliing
-  updateScale(entity, distance);  
+  // Apply the pre-calculated entity scale to the entity
+  entity.setAttribute('scale', `${entityScale} ${entityScale} ${entityScale}`); 
 
   entity.classList.add('clickable');
   image.classList.add('clickable'); //* Fix: clickable class had to be added to the child
@@ -292,198 +333,6 @@ function debounce(func, delay) {
     timeout = setTimeout(() => func.apply(this, args), delay);
   };
 }
-
-// AFRAME.registerComponent('toggle-title', {
-//   schema: {
-//     full: { type: 'string', default: '' }, // Full text for the POI
-//     threshold: { type: 'number', default: THREE.MathUtils.degToRad(5) } // Threshold in radians (5 degrees by default)
-//   },
-
-//   init: function () {
-//     const el = this.el; // The current POI
-//     const camera = document.querySelector('[gps-camera]').object3D; // Get the camera's 3D object
-//     this.camera = camera;
-
-//     // Get the text element and connecting line inside the POI
-//     const textEntity = el.querySelector('.poi-text');
-//     const textParent = textEntity ? textEntity.parentNode : null;
-//     const connectingLine = el.querySelector('.connecting-line');
-
-//     // Initialize the text and connecting line visibility
-//     if (textParent) {
-//       textParent.setAttribute('visible', false); // Hide the text by default
-//     }
-//     if (connectingLine) {
-//       connectingLine.setAttribute('visible', false); // Hide the connecting line by default
-//     }
-
-//     this.textParent = textParent;
-//     this.connectingLine = connectingLine;
-
-//     // State to track animation
-//     this.isFadingIn = false;
-//     this.isFadingOut = false;
-
-//     // Debounced fadeIn and fadeOut methods
-//     this.debouncedFadeIn = debounce(this.fadeIn.bind(this), 100); // N-ms debounce delay
-//     this.debouncedFadeOut = debounce(this.fadeOut.bind(this), 100); // N-ms debounce delay
-//   },
-
-//   tick: function () {
-//     const camera = this.camera;
-//     const threshold = this.data.threshold;
-
-//     // Get all POIs
-//     const pois = Array.from(document.querySelectorAll('.clickable'));
-//     let smallestAngle = Infinity;
-//     let centeredPOI = null;
-
-//     pois.forEach((poi) => {
-//       const position = new THREE.Vector3();
-//       poi.object3D.getWorldPosition(position);
-
-//       // Calculate the direction vector from the camera to the POI
-//       const directionToPOI = new THREE.Vector3();
-//       directionToPOI.subVectors(position, camera.position).normalize();
-
-//       // Get the camera's forward direction
-//       const cameraDirection = new THREE.Vector3();
-//       camera.getWorldDirection(cameraDirection);
-
-//       // Calculate the horizontal angle between the camera's forward direction and the POI
-//       const horizontalAngle = Math.atan2(directionToPOI.x, directionToPOI.z);
-//       const cameraHorizontalAngle = Math.atan2(cameraDirection.x, cameraDirection.z);
-
-//       // Calculate the absolute difference between the angles
-//       const angleDifference = Math.abs(
-//         ((horizontalAngle - cameraHorizontalAngle + Math.PI) % (2 * Math.PI))
-//       );
-
-//       // Check if this POI is closer to the center than the current closest POI
-//       if (angleDifference < smallestAngle) {
-//         smallestAngle = angleDifference;
-//         centeredPOI = poi;
-//       }
-//     });
-
-//     // Check if the closest POI is within the threshold
-//     if (smallestAngle <= threshold) {
-//       // Activate the centered POI
-//       if (this.el === centeredPOI) {
-//         this.debouncedFadeIn(); // Use debounced fadeIn
-//       } else {
-//         this.debouncedFadeOut(); // Use debounced fadeOut
-//       }
-//     } else {
-//       // No POI is within the threshold, fallback to the closest POI
-//       if (this.el === centeredPOI) {
-//         this.debouncedFadeIn(); // Use debounced fadeIn
-//       } else {
-//         this.debouncedFadeOut(); // Use debounced fadeOut
-//       }
-//     }
-//   },
-
-//   fadeIn: function () {
-//     if (this.isFadingIn || this.isFadingOut) return; // Prevent overlapping fading animations
-//     this.isFadingIn = true;
-//     this.isFadingOut = false; // Reset fade-out state
-
-//     if (this.textParent) {
-//       const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
-//       const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
-
-//       if (textElement) {
-//         textElement.setAttribute('visible', true); // Make the text visible
-//         textElement.setAttribute('animation__fadein', {
-//           property: 'opacity',
-//           to: 1,
-//           dur: 500, // Duration of fade-in (500ms)
-//           easing: 'easeInOutQuad'
-//         });
-//       }
-
-//       if (backgroundElement) {
-//         backgroundElement.setAttribute('visible', true); // Make the background visible
-//         backgroundElement.setAttribute('animation__fadein', {
-//           property: 'opacity',
-//           to: 1, // Target opacity for the background
-//           dur: 500, // Duration of fade-in (500ms)
-//           easing: 'easeInOutQuad'
-//         });
-//       }
-
-//       this.textParent.setAttribute('visible', true); // Ensure the parent is visible
-//     }
-
-//     if (this.connectingLine) {
-//       this.connectingLine.setAttribute('visible', true); // Make the connecting line visible
-//       this.connectingLine.setAttribute('animation__fadein', {
-//         property: 'opacity',
-//         to: 1,
-//         dur: 500, // Duration of fade-in (500ms)
-//         easing: 'easeInOutQuad'
-//       });
-//     }
-
-//     setTimeout(() => {
-//       this.isFadingIn = false; // Reset fade-in state after animation
-//     }, 500);
-//   },
-
-//   fadeOut: function () {
-//     if (this.isFadingIn || this.isFadingOut) return; // Prevent overlapping fading animations
-//     this.isFadingOut = true;
-//     this.isFadingIn = false; // Reset fade-in state
-
-//     if (this.textParent) {
-//       const textElement = this.textParent.querySelector('.poi-text'); // Get the text element
-//       const backgroundElement = textElement.querySelector('a-plane'); // Get the background element
-
-//       if (textElement) {
-//         textElement.setAttribute('animation__fadeout', {
-//           property: 'opacity',
-//           to: 0,
-//           dur: 500, // Duration of fade-out (500ms)
-//           easing: 'easeInOutQuad'
-//         });
-//         setTimeout(() => {
-//           textElement.setAttribute('visible', false); // Hide the text after fade-out
-//         }, 500); // Match the duration of the fade-out animation
-//       }
-
-//       if (backgroundElement) {
-//         backgroundElement.setAttribute('animation__fadeout', {
-//           property: 'opacity',
-//           to: 0,
-//           dur: 500, // Duration of fade-out (500ms)
-//           easing: 'easeInOutQuad'
-//         });
-//         setTimeout(() => {
-//           backgroundElement.setAttribute('visible', false); // Hide the background after fade-out
-//         }, 500); // Match the duration of the fade-out animation
-//       }
-
-//       this.textParent.setAttribute('visible', false); // Hide the parent container
-//     }
-
-//     if (this.connectingLine) {
-//       this.connectingLine.setAttribute('animation__fadeout', {
-//         property: 'opacity',
-//         to: 0,
-//         dur: 0, // Immediate fade-out - Prevent Lingering line issue
-//         easing: 'easeInOutQuad'
-//       });
-//       setTimeout(() => {
-//         this.connectingLine.setAttribute('visible', false); // Hide the connecting line after fade-out
-//       }, 0); // Immediate fade-out - Prevent Lingering line issue
-//     }
-
-//     setTimeout(() => {
-//       this.isFadingOut = false; // Reset fade-out state after animation
-//     }, 500);
-//   }
-// });
 
 // * Previously used to show the title of the POI when it is centered
 AFRAME.registerComponent('toggle-title', {
@@ -713,45 +562,6 @@ AFRAME.registerComponent('text-background', {
     backgroundEl.setAttribute('position', `${offsetX} 0 -2.5`); // Adjust position to center the background; Z-flicker fix
   }
 });
-
-function calculateReverseScale(distance) {
-// Define the goal distance and goal scale
-  const goalDistance = 1000; // 1000 meters
-  const goalScale = 1.25; // Scale for a POI at 1000 meters
-  if (distance === 0) {
-    console.warn("Distance is zero. Returning goal scale.");
-    return goalScale; // Return the goal scale for zero distance
-  }
-  // Adjust the scale to match the goal size
-  const adjustedScale = goalScale * (distance / goalDistance);
-  return adjustedScale;
-}
-
-function calculateProportionalScale(distance) {
-  // Define the goal distance and goal scale
-    const goalDistance = 1000; // 1000 meters
-    const goalScale = 1.25; // Scale for a POI at 1000 meters
-    if (distance === 0) {
-      console.warn("Distance is zero. Returning goal scale.");
-      return goalScale; // Return the goal scale for zero distance
-    }
-    // Adjust the scale to match the goal size
-    const adjustedScale = goalScale * (goalDistance / distance);
-    return adjustedScale;
-}
-
-function calculateLineScale(distance) {
-  const baseDistance = 1000; 
-  const baseScale = 1.0;
-  if (distance === 0) {
-    console.warn("Distance is zero. Returning goal scale.");
-    return baseScale; // Return the goal scale for zero distance
-  }
-  // Adjust the scale to lengthen the line when POI is further away
-  const adjustedScale = baseScale * (distance/baseDistance);
-  const lineScale = adjustedScale * adjustedScale;
-  return lineScale
-}
   
 //  // Query the FeatureLayer based on the selected State
 function loadPOIData() {
@@ -839,11 +649,51 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   // Clear existing POIs
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
+
+  // Add fake POIs for testing
+  const distantSigns = [
+    {
+      name: "(250m East)",
+      latitude: curLat, // Same latitude
+      longitude: curLon + (250 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 250 meters east
+    },
+    // {
+    //   name: "(100m North East)",
+    //   latitude: curLat + (100 / 111320), // Approximate 100 meters north
+    //   longitude: curLon + (100 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 100 meters east
+    // },
+    // {
+    //   name: "(50m South West)",
+    //   latitude: curLat - (50 / 111320), // Approximate 50 meters south
+    //   longitude: curLon - (50 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 50 meters west
+    // },
+    // {
+    //   name: "(South West)",
+    //   latitude: curLat - (25 / 111320), // Approximate 25 meters south
+    //   longitude: curLon - (25 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 25 meters 
+    // },
+    // {
+    //   name: "(7m North East)",
+    //   latitude: curLat + (5 / 111320), // Approximate 5 meters north
+    //   longitude: curLon + (5 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 5 meters
+    // },
+    // {
+    //   name: "(1m South East)",
+    //   latitude: curLat - (1 / 111320), // Approximate 1 meters south
+    //   longitude: curLon + (1 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 1 meters 
+    // }
+  ];
+
   updateOverlayText();
   if (isUSStateAssigned)  // Prevent not calling the function when there is no default US state 
     {
     loadPOIData();
   }
+
+  distantSigns.forEach(distantSign => {
+    const distantSignEntity = createPOIEntity(distantSign, curLat, curLon);
+    document.querySelector('a-scene').appendChild(distantSignEntity);
+  });
   
 }
 
