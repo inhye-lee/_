@@ -231,7 +231,7 @@
 <body>
 
   <div id="my-ar-container"></div>
-  <div id="debug-overlay">Fetching GPS and Compass Data...</div>
+  <div id="debug-overlay">Fetching..</div>
   <div id="loadingIndicator">Loading Points of Interest Near You</div>
   <div id="control-container">
     <button id="toggleGPSButton">Use Raw GPS</button>
@@ -241,6 +241,7 @@
       <span id="distanceValue">3000m</span><span>&nbsp;</span></span><span id="poi-counter"></span> 
     </div>
   </div>
+ 
 
 
   <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true;'>
@@ -249,7 +250,7 @@
     <a-entity id="user-location">
       <a-text 
       id="info-text"
-      value="Fetching data..."
+      value=""
       look-at="[gps-camera]"
       scale="50 50 50"
       gps-entity-place="latitude: 0; longitude: 0;"
