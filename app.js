@@ -61,58 +61,117 @@ function calculateDistance(userLat, userLon, poiLat, poiLon) {
   return distance;
 }
 
-// Not used: Calculate the direction vector for items far away - We will create a fixed size sphere instead that ar of same scale
-// function calculateDirectionVector(userLat, userLon, poiLat, poiLon) {
-//   const toRadians = (deg) => deg * (Math.PI / 180);
-//   const toDegrees = (rad) => rad * (180 / Math.PI);
+  // Add fake POIs for testing scaling method
+  const distantSigns = [
+    {
+      name: "(300m East)",
+      latitude: curLat,
+      longitude: curLon + (300 / (111320 * Math.cos(curLat * Math.PI / 180))) // 300 meters east
+    },
+    {
+      name: "(500m North-East)",
+      latitude: curLat + (500 / 111320), // 500 meters north
+      longitude: curLon + (500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 500 meters east
+    },
+    {
+      name: "(750m South-West)",
+      latitude: curLat - (750 / 111320), // 750 meters south
+      longitude: curLon - (750 / (111320 * Math.cos(curLat * Math.PI / 180))) // 750 meters west
+    },
+    {
+      name: "(1000m North)",
+      latitude: curLat + (1000 / 111320), // 1000 meters north
+      longitude: curLon // Same longitude
+    },
+    {
+      name: "(1300m South-East)",
+      latitude: curLat - (1300 / 111320), // 1300 meters south
+      longitude: curLon + (1300 / (111320 * Math.cos(curLat * Math.PI / 180))) // 1300 meters east
+    },
+    {
+      name: "(1500m West)",
+      latitude: curLat,
+      longitude: curLon - (1500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 1500 meters west
+    },
+    {
+      name: "(2000m North-West)",
+      latitude: curLat + (2000 / 111320), // 2000 meters north
+      longitude: curLon - (2000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 2000 meters west
+    },
+    {
+      name: "(2200m South)",
+      latitude: curLat - (2200 / 111320), // 2200 meters south
+      longitude: curLon // Same longitude
+    },
+    {
+      name: "(2500m East)",
+      latitude: curLat,
+      longitude: curLon + (2500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 2500 meters east
+    },
+    {
+      name: "(3000m North-East)",
+      latitude: curLat + (3000 / 111320), // 3000 meters north
+      longitude: curLon + (3000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 3000 meters east
+    },
+    {
+      name: "(5000m South-West)",
+      latitude: curLat - (5000 / 111320), // 5000 meters south
+      longitude: curLon - (5000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 5000 meters west
+    },
+    {
+      name: "(7000m North-West)",
+      latitude: curLat + (7000 / 111320), // 7000 meters north
+      longitude: curLon - (7000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 7000 meters west
+    },
+    {
+      name: "(East)",
+      latitude: curLat, // Same latitude
+      longitude: curLon + (250 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 250 meters east
+    },
+    {
+      name: "(North East)",
+      latitude: curLat + (100 / 111320), // Approximate 100 meters north
+      longitude: curLon + (100 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 100 meters east
+    },
+    {
+      name: "(South West)",
+      latitude: curLat - (50 / 111320), // Approximate 50 meters south
+      longitude: curLon - (50 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 50 meters west
+    },
+    {
+      name: "(South West)",
+      latitude: curLat - (25 / 111320), // Approximate 25 meters south
+      longitude: curLon - (25 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 25 meters 
+    },
+    {
+      name: "(North East)",
+      latitude: curLat + (5 / 111320), // Approximate 5 meters north
+      longitude: curLon + (5 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 5 meters
+    },
+    {
+      name: "(South East)",
+      latitude: curLat - (1 / 111320), // Approximate 1 meters south
+      longitude: curLon + (1 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 1 meters 
+    }
+  ];
 
-//   const dLon = toRadians(poiLon - userLon);
-//   const lat1 = toRadians(userLat);
-//   const lat2 = toRadians(poiLat);
-
-//   const y = Math.sin(dLon) * Math.cos(lat2);
-//   const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-
-//   const bearing = toDegrees(Math.atan2(y, x));
-//   return bearing;
-// }
-
-// Update the scale of an entity based on distance (Scale By Distance)
-// function updateScale(entity, distance) {
-//   // entity.setAttribute('scale', `5 5 5`);
-//   // if (distance > thresholdDistance) { // If further away;
-//   //   // Make it appear as a fixed size yet showing up on a direction relevant to the current user location
-//   //   // Fixed Scale - size Still responsive to the distance
-//   //   entity.setAttribute('scale', "100 100 100");
-//   //   // console.log(`Further than threshold: ${thresholdDistance}`, distance, "POI ID: ", entity.id, "scale: ", 50);
-//   // } else {    // Dynamic Scale POIs by Distance - within threshold 
-//   //   let scale;
-//   //   // Dividing 1000 by the distance is a way to create a scaling factor that inversely relates to the distance
-//   //   scale = Math.min(maxScale, Math.max(minScale, 1000 / distance));
-//   //   // scale = Math.max(200, 1000 / distance);
-//   //   entity.setAttribute('scale', `${scale} ${scale} ${scale}`);
-//   //   // console.log("NEAR distance: ", distance, "POI ID", entity.id, "scale: ", scale);
-  
-// }
 
 // scaling function to compensate the distance
 function updateScale(distance) {
   let updatedScale; 
-  let baseScale = 60; // Scaling that works for mid-range objects
+  let baseScale = 15; // Scaling that works for mid-range objects
   // Define the reference distance to clamp size for short & far
   const farThreshold = 2000; // (Based on Testing)
-  const nearThreshold = 250; // (Based on Testing)
+  const nearThreshold = 200; //
 
-  // Case 1: For distances greater than farThreshold
-  if (distance > farThreshold) {
-    updatedScale = baseScale * (distance / farThreshold);  // varying scale to output a fixed minimum size 
+   // Case 1: For distances greater than farThreshold
+  if (distance > farThreshold) { // keep it at base size
+    updatedScale = baseScale * 10; // Scale up by a factor of 10 for far distances
   }  // Case 2: For distances between short and far
-  else if (distance > nearThreshold && distance <= farThreshold) {
-    updatedScale = baseScale; // A single scale used for linear-proportional scaling 
-  } // Case 3: For distances closer than the near threshold
-  else if (distance <= nearThreshold) {
-    updatedScale = baseScale * (distance / nearThreshold); // varying scale to output fixed maximum size
-  }  // Case 4: Handle invalid distances (e.g., 0 or negative)
+  else if (distance <= farThreshold) {
+    const scaleFactor = distance * 0.005; // Adjust scale for better scaling effect
+    updatedScale = baseScale * scaleFactor; // A single scale used for linear-proportional scaling 
+  }  // Case 3: Handle invalid distances (e.g., 0 or negative)
   else {
     console.warn("Distance is zero or negative. Returning base scale.");
     updatedScale = baseScale; 
@@ -120,25 +179,37 @@ function updateScale(distance) {
   return updatedScale;
 }
 
-function calculateLineScale(distance) {
-  const baseDistance = 1000; 
-  const baseScale = 1.0;
-  if (distance === 0) {
-    console.warn("Distance is zero. Returning goal scale.");
-    return baseScale; // Return the goal scale for zero distance
-  }
-  // Adjust the scale to lengthen the line when POI is further away
-  const adjustedScale = baseScale * (distance/baseDistance);
-  const lineScale = adjustedScale * adjustedScale;
-  return lineScale
+// Text Scaling to compensate the differences
+function updateTextScale(distance) {
+  let updatedScale; 
+  let baseScale = 4.0; // Scaling that works for mid-range objects
+  // Define the reference distance to clamp size for short & far
+  const farThreshold = 2000; // (Based on Testing)
+  const nearThreshold = 200; // Base Distance
+  const scaleFactor = 0.5; // Adjust scale
+
+  updatedScale = baseScale;
+  // Case 1: For distances greater than farThreshold
+  if (distance > farThreshold) { // keep it at base size
+    
+    updatedScale = baseScale * (distance/farThreshold) * scaleFactor;   // OutPut same size 
+    }  // Case 2: For distances between short and far
+    else if (distance <= farThreshold) {
+      updatedScale = baseScale * scaleFactor;
+    }  // Case 3: Handle invalid distances (e.g., 0 or negative)
+    else {
+    //   console.warn("Distance is zero or negative. Returning base scale.");
+      updatedScale = baseScale; 
+    }
+  return updatedScale;
 }
 
-//*REWRITING IT FOR THREE RANGES */
+//Custom Placement
 function createPOIEntity(poi, userLatitude, userLongitude) {
   // Distance calculation & Scaling
   const distance = calculateDistance(userLatitude, userLongitude, poi.latitude, poi.longitude);
   const entityScale = updateScale(distance); // Scale based on distance (Dynamic with Clamping )
-  const lineScale = calculateLineScale(distance);
+  const textParentScale = updateTextScale(distance); // Scale based on distance (Dynamic with Clamping )
   
   // Image Source for Label
   let imageSrc;
@@ -158,11 +229,11 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
 
   // Height val, offset
   const imageHeight = 2; 
-  let lineHeight = imageHeight * 1.5 ; 
-  let lineYOffset = lineHeight; // Deducted
-  let imageYOffset = lineHeight/2- imageHeight - 0.1;
-  let textYOffset = imageYOffset + imageHeight//offset
-  let connectingLineOffset = textYOffset - imageHeight/2;
+  let lineHeight = imageHeight * 0.75*textParentScale ; 
+  let lineYOffset = imageHeight * 0.75 ; // Deducted
+  let imageYOffset = lineHeight/2 - imageHeight/4- 0.1;
+  let textYOffset = (imageYOffset + imageHeight/2)+0.5*textParentScale;//offset
+  let connectingLineOffset = imageYOffset +imageHeight/2;
 
   // (0) Entity - Create a new entity for the POI
   const entity = document.createElement('a-entity');
@@ -208,8 +279,8 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
     ? `${(distance / 1000).toFixed(1)} km`
     : `${Math.round(distance)} m`;
 
-// Combine POI name, distance, and screen size
-const fullText = `${poi.name} (${formattedDistance})`;
+  // Combine POI name, distance, and screen size
+  const fullText = `${poi.name} (${formattedDistance})`;
 
   // Check if text already exists (*Fix for duplicate error)
   const existingText = textParent.querySelector('.poi-text');
@@ -242,14 +313,15 @@ const fullText = `${poi.name} (${formattedDistance})`;
   entity.appendChild(textParent);
 
   // (4) Connecting Line
-  const connectingLine = createLine(entity, { x: 0, y: textYOffset-0.2*2, z: 0 }, { x: 0, y: connectingLineOffset, z: 0 }, 'white');
+  const connectingLine = createLine(entity, { x: 0, y: textYOffset-0.25, z: 0 }, { x: 0, y: connectingLineOffset, z: 0 }, 'white');
   connectingLine.setAttribute('visible', false); // Hide the line by default
 
   // Apply reverse scaling based on Distance
-  textParent.setAttribute('scale', `${200/entityScale} ${200/entityScale} ${200/entityScale}`);
+  textParent.setAttribute('scale', `${textParentScale} ${textParentScale} ${textParentScale}`);
   textParent.setAttribute('position', `0 ${textYOffset} 0`); // Position the text parent on top of the line
 
   entity.setAttribute('gps-entity-place', `latitude: ${poi.latitude}; longitude: ${poi.longitude};`);
+
   // Apply the pre-calculated entity scale to the entity
   entity.setAttribute('scale', `${entityScale} ${entityScale} ${entityScale}`); 
 
@@ -344,6 +416,8 @@ AFRAME.registerComponent('toggle-title', {
   init: function () {
     const el = this.el; // The current POI
     const camera = document.querySelector('[gps-camera]').object3D; // Get the camera's 3D object
+
+    // const camera = document.querySelector('[gps-camera]').object3D; // Get the camera's 3D object
     this.camera = camera;
 
     // Get the text element and connecting line inside the POI
@@ -524,8 +598,6 @@ AFRAME.registerComponent('text-background', {
     backgroundEl.setAttribute('color', this.data.color);
     backgroundEl.setAttribute('opacity', this.data.opacity);
 
-    // backgroundEl.setAttribute('shadow', 'cast: true; receive: true'); // Add shadow
-
     // Append the background plane as a child of the text entity
     textEl.appendChild(backgroundEl);
 
@@ -650,50 +722,17 @@ function updateDisplay() { // This is where AR Screen gets refreshed
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
 
-  // Add fake POIs for testing
-  const distantSigns = [
-    {
-      name: "(250m East)",
-      latitude: curLat, // Same latitude
-      longitude: curLon + (250 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 250 meters east
-    },
-    // {
-    //   name: "(100m North East)",
-    //   latitude: curLat + (100 / 111320), // Approximate 100 meters north
-    //   longitude: curLon + (100 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 100 meters east
-    // },
-    // {
-    //   name: "(50m South West)",
-    //   latitude: curLat - (50 / 111320), // Approximate 50 meters south
-    //   longitude: curLon - (50 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 50 meters west
-    // },
-    // {
-    //   name: "(South West)",
-    //   latitude: curLat - (25 / 111320), // Approximate 25 meters south
-    //   longitude: curLon - (25 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 25 meters 
-    // },
-    // {
-    //   name: "(7m North East)",
-    //   latitude: curLat + (5 / 111320), // Approximate 5 meters north
-    //   longitude: curLon + (5 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 5 meters
-    // },
-    // {
-    //   name: "(1m South East)",
-    //   latitude: curLat - (1 / 111320), // Approximate 1 meters south
-    //   longitude: curLon + (1 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 1 meters 
-    // }
-  ];
-
   updateOverlayText();
   if (isUSStateAssigned)  // Prevent not calling the function when there is no default US state 
     {
     loadPOIData();
   }
 
-  distantSigns.forEach(distantSign => {
-    const distantSignEntity = createPOIEntity(distantSign, curLat, curLon);
-    document.querySelector('a-scene').appendChild(distantSignEntity);
-  });
+  // Add fake POIs for testing scaling method
+  // distantSigns.forEach(distantSign => {
+  //   const distantSignEntity = createPOIEntity(distantSign, curLat, curLon);
+  //   document.querySelector('a-scene').appendChild(distantSignEntity);
+  // });
   
 }
 
