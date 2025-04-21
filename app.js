@@ -1,9 +1,15 @@
+window.module= {}; // Fix for KalmanJS
+
 // Temp API Key for Location Services (inc. Geocoding): Expires May 31 2025
 const esriConfig = {
   apiKey: "AAPTxy8BH1VEsoebNVZXo8HurLRYsIcdvKKWcuOv2pgkoPa83X5203hTMNmkIserOf2KoTOvhIDCRTfPBVVZFGSqJB38gyWw0suv8ZEot3UdGycvb_MOTYUopiDmL5voe7DPXDb4e4ueUJI0tj2eY0myefU2NosMLnZC_IpblBRwnNE6IS4x0ApqghVfdUisrVA-Fr5U8LOym_Tuh70OdUFVxmCJXXaN4pbEe6VWVpfzZVs.AT1_CiCOhLmU" 
 };
 
-let view; // Declare globally *Fix for iOS WebScene not responsive to heading change
+const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
+
+let webscene; // Declare globally
+// let view; // Declare globally *Fix for iOS WebScene not responsive to heading change
+let pointsLayer; // Declare globally
 
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
@@ -36,13 +42,108 @@ let thresholdDistance = 3000; // Default value (Dynamic via Slider)
 let currentlyExpandedPOI = null;
 let userInteracted = false; // Tracks if the user has interacted with a POI
 
-const featureLayerUrl = "https://services1.arcgis.com/Ua5sjt3LWTPigjyD/arcgis/rest/services/Public_School_Locations_Current/FeatureServer/" ;
-
 // Temporarily using an absolute path to get away issues in public repo
 const symbol_HI = 'https://inhye-lee.github.io/_/labels/Museum.png';
 const symbol_CA = 'https://inhye-lee.github.io/_/labels/Hotel.png';
 const symbol_NY = 'https://inhye-lee.github.io/_/labels/Church.png';
 const symbol_default = 'https://inhye-lee.github.io/_/labels/Park.png';
+
+let activePopUpPOI = null; // Global variable to track the currently active POI with a pop-up
+let centeredPOI = null; // Variable to track the currently centered POI
+
+  // Add fake POIs for testing scaling method
+const distantSigns = [
+  {
+    name: "(300m East)",
+    latitude: curLat,
+    longitude: curLon + (300 / (111320 * Math.cos(curLat * Math.PI / 180))) // 300 meters east
+  },
+  {
+    name: "(500m North-East)",
+    latitude: curLat + (500 / 111320), // 500 meters north
+    longitude: curLon + (500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 500 meters east
+  },
+  {
+    name: "(750m South-West)",
+    latitude: curLat - (750 / 111320), // 750 meters south
+    longitude: curLon - (750 / (111320 * Math.cos(curLat * Math.PI / 180))) // 750 meters west
+  },
+  {
+    name: "(1000m North)",
+    latitude: curLat + (1000 / 111320), // 1000 meters north
+    longitude: curLon // Same longitude
+  },
+  {
+    name: "(1300m South-East)",
+    latitude: curLat - (1300 / 111320), // 1300 meters south
+    longitude: curLon + (1300 / (111320 * Math.cos(curLat * Math.PI / 180))) // 1300 meters east
+  },
+  {
+    name: "(1500m West)",
+    latitude: curLat,
+    longitude: curLon - (1500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 1500 meters west
+  },
+  {
+    name: "(2000m North-West)",
+    latitude: curLat + (2000 / 111320), // 2000 meters north
+    longitude: curLon - (2000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 2000 meters west
+  },
+  {
+    name: "(2200m South)",
+    latitude: curLat - (2200 / 111320), // 2200 meters south
+    longitude: curLon // Same longitude
+  },
+  {
+    name: "(2500m East)",
+    latitude: curLat,
+    longitude: curLon + (2500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 2500 meters east
+  },
+  {
+    name: "(3000m North-East)",
+    latitude: curLat + (3000 / 111320), // 3000 meters north
+    longitude: curLon + (3000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 3000 meters east
+  },
+  {
+    name: "(5000m South-West)",
+    latitude: curLat - (5000 / 111320), // 5000 meters south
+    longitude: curLon - (5000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 5000 meters west
+  },
+  {
+    name: "(7000m North-West)",
+    latitude: curLat + (7000 / 111320), // 7000 meters north
+    longitude: curLon - (7000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 7000 meters west
+  },
+  {
+    name: "(East)",
+    latitude: curLat, // Same latitude
+    longitude: curLon + (250 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 250 meters east
+  },
+  {
+    name: "(North East)",
+    latitude: curLat + (100 / 111320), // Approximate 100 meters north
+    longitude: curLon + (100 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 100 meters east
+  },
+  {
+    name: "(South West)",
+    latitude: curLat - (50 / 111320), // Approximate 50 meters south
+    longitude: curLon - (50 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 50 meters west
+  },
+  {
+    name: "(South West)",
+    latitude: curLat - (25 / 111320), // Approximate 25 meters south
+    longitude: curLon - (25 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 25 meters 
+  },
+  {
+    name: "(North East)",
+    latitude: curLat + (5 / 111320), // Approximate 5 meters north
+    longitude: curLon + (5 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 5 meters
+  },
+  {
+    name: "(South East)",
+    latitude: curLat - (1 / 111320), // Approximate 1 meters south
+    longitude: curLon + (1 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 1 meters 
+  }
+];
 
 // Haversine formula: Calculate distance between two coordinates 
 function calculateDistance(userLat, userLon, poiLat, poiLon) {
@@ -60,101 +161,6 @@ function calculateDistance(userLat, userLon, poiLat, poiLon) {
   const distance = R * c;
   return distance;
 }
-
-  // Add fake POIs for testing scaling method
-  const distantSigns = [
-    {
-      name: "(300m East)",
-      latitude: curLat,
-      longitude: curLon + (300 / (111320 * Math.cos(curLat * Math.PI / 180))) // 300 meters east
-    },
-    {
-      name: "(500m North-East)",
-      latitude: curLat + (500 / 111320), // 500 meters north
-      longitude: curLon + (500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 500 meters east
-    },
-    {
-      name: "(750m South-West)",
-      latitude: curLat - (750 / 111320), // 750 meters south
-      longitude: curLon - (750 / (111320 * Math.cos(curLat * Math.PI / 180))) // 750 meters west
-    },
-    {
-      name: "(1000m North)",
-      latitude: curLat + (1000 / 111320), // 1000 meters north
-      longitude: curLon // Same longitude
-    },
-    {
-      name: "(1300m South-East)",
-      latitude: curLat - (1300 / 111320), // 1300 meters south
-      longitude: curLon + (1300 / (111320 * Math.cos(curLat * Math.PI / 180))) // 1300 meters east
-    },
-    {
-      name: "(1500m West)",
-      latitude: curLat,
-      longitude: curLon - (1500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 1500 meters west
-    },
-    {
-      name: "(2000m North-West)",
-      latitude: curLat + (2000 / 111320), // 2000 meters north
-      longitude: curLon - (2000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 2000 meters west
-    },
-    {
-      name: "(2200m South)",
-      latitude: curLat - (2200 / 111320), // 2200 meters south
-      longitude: curLon // Same longitude
-    },
-    {
-      name: "(2500m East)",
-      latitude: curLat,
-      longitude: curLon + (2500 / (111320 * Math.cos(curLat * Math.PI / 180))) // 2500 meters east
-    },
-    {
-      name: "(3000m North-East)",
-      latitude: curLat + (3000 / 111320), // 3000 meters north
-      longitude: curLon + (3000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 3000 meters east
-    },
-    {
-      name: "(5000m South-West)",
-      latitude: curLat - (5000 / 111320), // 5000 meters south
-      longitude: curLon - (5000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 5000 meters west
-    },
-    {
-      name: "(7000m North-West)",
-      latitude: curLat + (7000 / 111320), // 7000 meters north
-      longitude: curLon - (7000 / (111320 * Math.cos(curLat * Math.PI / 180))) // 7000 meters west
-    },
-    {
-      name: "(East)",
-      latitude: curLat, // Same latitude
-      longitude: curLon + (250 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 250 meters east
-    },
-    {
-      name: "(North East)",
-      latitude: curLat + (100 / 111320), // Approximate 100 meters north
-      longitude: curLon + (100 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 100 meters east
-    },
-    {
-      name: "(South West)",
-      latitude: curLat - (50 / 111320), // Approximate 50 meters south
-      longitude: curLon - (50 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 50 meters west
-    },
-    {
-      name: "(South West)",
-      latitude: curLat - (25 / 111320), // Approximate 25 meters south
-      longitude: curLon - (25 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 25 meters 
-    },
-    {
-      name: "(North East)",
-      latitude: curLat + (5 / 111320), // Approximate 5 meters north
-      longitude: curLon + (5 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 5 meters
-    },
-    {
-      name: "(South East)",
-      latitude: curLat - (1 / 111320), // Approximate 1 meters south
-      longitude: curLon + (1 / (111320 * Math.cos(curLat * Math.PI / 180))) // Approximate 1 meters 
-    }
-  ];
-
 
 // scaling function to compensate the distance
 function updateScale(distance) {
@@ -191,7 +197,6 @@ function updateTextScale(distance) {
   updatedScale = baseScale;
   // Case 1: For distances greater than farThreshold
   if (distance > farThreshold) { // keep it at base size
-    
     updatedScale = baseScale * (distance/farThreshold) * scaleFactor;   // OutPut same size 
     }  // Case 2: For distances between short and far
     else if (distance <= farThreshold) {
@@ -394,19 +399,7 @@ AFRAME.registerComponent('raycaster-handler', {
   }
 });
 
-let activePopUpPOI = null; // Global variable to track the currently active POI with a pop-up
-let centeredPOI = null; // Variable to track the currently centered POI
-
-// Reusable debounce function
-function debounce(func, delay) {
-  let timeout;
-  return function (...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), delay);
-  };
-}
-
-// * Previously used to show the title of the POI when it is centered
+// * Show the title of the POI when it is centered
 AFRAME.registerComponent('toggle-title', {
   schema: {
     full: { type: 'string', default: '' }, // Full text for the POI
@@ -635,14 +628,14 @@ AFRAME.registerComponent('text-background', {
   }
 });
   
-//  // Query the FeatureLayer based on the selected State
+//  Query the FeatureLayer based on the selected State (Old Code)
 function loadPOIData() {
-  // Show the loading indicator
+  console.log("loadPOIData is called");
   document.getElementById('loadingIndicator').style.display = 'block';
-
   require([
     "esri/layers/FeatureLayer"
   ], function(FeatureLayer) {
+    console.log("FeatureLayer loaded successfully"); // Debugging log
 
     const modifiedUrl = featureLayerUrl + "0";
     const featureLayer = new FeatureLayer({
@@ -687,9 +680,9 @@ function loadPOIData() {
 
               // Calculate distance between current location and POI
               const distance = calculateDistance(curLat, curLon, poi.latitude, poi.longitude);
-
               // Only draw POIs that are within the threshold distance
               if (distance <= thresholdDistance) {
+                
                 const poiEntity = createPOIEntity(poi, curLat, curLon);
                 document.querySelector('a-scene').appendChild(poiEntity);
                 poiCount++; // Increment POI counter
@@ -718,6 +711,7 @@ function loadPOIData() {
 }
 
 function updateDisplay() { // This is where AR Screen gets refreshed
+  console.log("updateDisplay is called");
   // Clear existing POIs
   const existingPOIs = document.querySelectorAll('[gps-entity-place]');
   existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
@@ -741,18 +735,23 @@ function updateGPS() {
     navigator.geolocation.watchPosition(
       (position) => {
         // Values from GPS Hardware
+        console.log("in updateGPS(): ", "Latitude:", position.coords.latitude, "Longitude:", position.coords.longitude);
         lat = position.coords.latitude;
         lon = position.coords.longitude; 
         gpsReady = true; 
 
-        // Initialize Kalman filters for latitude and longitude (Noise Reduction)
-        const kalmanLat = new KalmanFilter({ R: 0.01, Q: 3 });
-        const kalmanLon = new KalmanFilter({ R: 0.01, Q: 3 });
+        import('https://cdn.jsdelivr.net/npm/kalmanjs@1.1.0/lib/kalman.min.js').then(_ => {
+          // console.log(module.exports);
+          const KalmanFilter = module.exports;
+          // Initialize Kalman filters for latitude and longitude (Noise Reduction)
+          const kalmanLat = new KalmanFilter({ R: 0.01, Q: 3 });
+          const kalmanLon = new KalmanFilter({ R: 0.01, Q: 3 });
 
-        // Apply Kalman filter to the raw GPS values
-        filteredLat = kalmanLat.filter(lat);
-        filteredLon = kalmanLon.filter(lon);
-
+          // Apply Kalman filter to the raw GPS values
+          filteredLat = kalmanLat.filter(lat);
+          filteredLon = kalmanLon.filter(lon);
+        });
+     
         // Call updateDisplay based on useFilteredData boolean
         if (!useFilteredData) {
           updateDisplay();
@@ -768,7 +767,7 @@ function updateGPS() {
       },
       (error) => {
         console.error("Geolocation error: ", error);
-        debugOverlay.innerHTML = "GPS Error: " + error.message;
+        debugOverlay.innerHTML = `GPS Error: ${error.message}`;
       },
       { enableHighAccuracy: true}
     );
@@ -778,7 +777,6 @@ function updateGPS() {
   }
 }
 
-
 document.addEventListener('DOMContentLoaded', () => {
   const start = async () => {
     // Enable resizing the bottom panel with touch and drag
@@ -786,8 +784,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the ArcGIS SceneView
     initSceneView();
-
-  
   }
   start();
 });
@@ -848,38 +844,20 @@ function enablePanelResizing() {
 
 function initSceneView() {
   require([
-    "esri/widgets/Track", // Track widget is being deprecated
-    "esri/WebScene",
     "esri/layers/FeatureLayer",
-    "esri/views/SceneView",
-    "esri/widgets/Legend",
-    "esri/widgets/Search",
-    "esri/widgets/Expand",
-    "esri/rest/locator",
-    "esri/geometry/Point"
   ], (
-    Track,
-    WebScene,
     FeatureLayer,
-    SceneView,
-    Legend,
-    Search,
-    Expand,
-    locator,
-    Point
   ) => {
+    // References to the map components in index.html
+    webscene = document.querySelector("arcgis-scene");
+    const track = document.getElementById("track");
+    const legendExpand = document.getElementById("legend-expand");
+    const legend = document.getElementById("legend"); 
 
-    //********************** Set up a Web Scene **********************//
-    // Load the webscene 
-    // Create a new WebScene programmatically
-    const webscene = new WebScene({
-    basemap: "topo-vector", // Use the "Outdoor" basemap
-    ground: "world-elevation" // Enable elevation for 3D effects
-  });
-
-    view = new SceneView({
-      container: "viewDiv",
-      map: webscene,
+   //********************** Set up a Web Scene **********************//
+    Object.assign(webscene, {
+      basemap: "topo-vector", // Use the "Topographic" basemap
+      ground: "world-elevation", // Enable elevation for 3D effects
       environment: {
         lighting: {
           directShadowsEnabled: true
@@ -894,10 +872,9 @@ function initSceneView() {
         tilt: 60, // Tilt the camera 
         heading: 0 // Initial heading (0 degrees)
       }
-    });
+    })
 
     //********************** Symbols, Points Rendering, Points Layer  **********************//
-    // Symbols for the points of interest
     const verticalOffset = {
       screenLength: 40,
       maxWorldLength: 200,
@@ -952,7 +929,7 @@ function initSceneView() {
       defaultSymbol: getUniqueValueSymbol(symbol_default, "#40C2B4")
     };
 
-    const pointsLayer = new FeatureLayer({
+    pointsLayer = new FeatureLayer({
       url: featureLayerUrl,
       title: "Disaster Shelter Locations by States",
       popupTemplate: {
@@ -993,222 +970,203 @@ function initSceneView() {
       ]
     });
 
-    webscene.add(pointsLayer);
+    //**********************  Listen for the map's view to be ready
+    webscene.addEventListener("arcgisViewReadyChange", () => {
+      //**********************  Add PointsLayer to the map
+      webscene.map.add(pointsLayer); // webscene.map is the map object
 
-    //********************** Points Symbol Style with Call-Outs **********************//
-    document.getElementById("cityStyle").addEventListener("change", (event) => {
-      if (event.target.id === "declutter") {
-        const type = {
-          type: "selection"
-        };
-        pointsLayer.featureReduction = event.target.checked ? type : null;
-      } else if (event.target.id === "perspective") {
-        pointsLayer.screenSizePerspectiveEnabled = event.target.checked;
-      } else if (event.target.id === "callout") {
-        const renderer = pointsLayer.renderer.clone();
-        renderer.uniqueValueInfos.forEach((valueInfo) => {
-          valueInfo.symbol.verticalOffset = event.target.checked ? verticalOffset : null;
-        });
-        pointsLayer.renderer = renderer;
-      } else if (event.target.id === "relative-to-scene") {
-        const mode = event.target.checked ? "relative-to-scene" : "relative-to-ground";
-        pointsLayer.elevationInfo = {
-          mode: mode
-        };
-      }
-    });
-
-    view.ui.add(document.getElementById("cityStyle"), "bottom-left");
-
-    //********************** User Location Tracking (Blue Dot) **********************//
-    const track = new Track({
-      view: view
-    });
-
-    view.ui.add(track, "top-left");
-
-    view.when(() => {
-      track.start();
-    });
-
-    track.on("track", function(event) {
-      const point = new Point({
-        latitude: event.position.coords.latitude,
-        longitude: event.position.coords.longitude
-      });
-
-      // Update the blue dot in the WebScene
-      view.goTo({
-        position: {
-          latitude: point.latitude,
-          longitude: point.longitude,
-          z: view.camera.position.z // Maintain the current zoom level
-        }
-      });
-      const locatorUrl = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
-      
-      // Only assign the US state once
-      if (!isUSStateAssigned) {
-        locator.locationToAddress(locatorUrl, {
-          location: point
-        })
-        .then(function(response) {
-          defaultUSState = response.attributes.RegionAbbr;
-          console.log("US State from Location Tracking:", defaultUSState);
-          
-          if (stateSelect) {
-            stateSelect.value = defaultUSState;
-          }
-
-          // Set the flag to true after assigning the state
-          isUSStateAssigned = true;
-
-           // Call updateStateFilter only after assigning defaultUSState
-           updateStateFilter();
-        })
-        .catch(function(error) {
-          console.error("Error in reverse geocoding:", error);
-        });
-      }
-    });
-
-    //********************** Update State Filter Function **********************//
-    function updateStateFilter() {
-      selectedState = stateSelect.value; // Update selectedState global variable from dropDown
-      console.log("selectedState in updateStateFilter", selectedState);
-      stateSelect.addEventListener("change", updateStateFilter);
-      if (selectedState) {
-          pointsLayer.definitionExpression = `STATE = '${selectedState}'`;
-          console.log("Updated US state: " + `${selectedState}`);
-  
-          // Clear existing POIs
-          const existingPOIs = document.querySelectorAll('[gps-entity-place]');
-          existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
-  
-          // Load new POI data based on the selected state
-          loadPOIData();
-      } else {
-          console.log("No state selected");
-      }
-    } 
-
-    //********************** Legend with State Info **********************//
-    const legend = new Legend({
-      view: view,
-      layerInfos: [
+      //********************** Legend with State Info **********************//
+      legendExpand.expanded = false;
+      legend.layerInfos = [
         {
           layer: pointsLayer,
           title: "Shelter Locations by States"
         }
-      ]
-    });
+      ];
 
-    const legendExpand = new Expand({
-      view: view,
-      content: legend,
-      expanded: false
-    });
+      // Wait for the Legend component to render, then add a stateSelect Filter
+      setTimeout(() => {
+        const legendContainer = document.querySelector(".esri-legend"); // esri-expand__popover-content
+        if (legendContainer) {
+          // Create a div
+          const filterDiv = document.createElement("div");
+          filterDiv.id = "filterDiv";
+          filterDiv.innerHTML = `<label for="stateSelect">View by State:</label>`;
+          // Create a select Element
+          stateSelect = document.createElement("select");
+          stateSelect.id = "stateSelect";
+          stateSelect.innerHTML = `
+            <option value ="None">None</option>
+            <option value="AL">Alabama</option>
+            <option value="AK">Alaska</option>
+            <option value="AZ">Arizona</option>
+            <option value="AR">Arkansas</option>
+            <option value="CA">California</option>
+            <option value="CO">Colorado</option>
+            <option value="CT">Connecticut</option>
+            <option value="DE">Delaware</option>
+            <option value="FL">Florida</option>
+            <option value="GA">Georgia</option>
+            <option value="HI">Hawaii</option>
+            <option value="ID">Idaho</option>
+            <option value="IL">Illinois</option>
+            <option value="IN">Indiana</option>
+            <option value="IA">Iowa</option>
+            <option value="KS">Kansas</option>
+            <option value="KY">Kentucky</option>
+            <option value="LA">Louisiana</option>
+            <option value="ME">Maine</option>
+            <option value="MD">Maryland</option>
+            <option value="MA">Massachusetts</option>
+            <option value="MI">Michigan</option>
+            <option value="MN">Minnesota</option>
+            <option value="MS">Mississippi</option>
+            <option value="MO">Missouri</option>
+            <option value="MT">Montana</option>
+            <option value="NE">Nebraska</option>
+            <option value="NV">Nevada</option>
+            <option value="NH">New Hampshire</option>
+            <option value="NJ">New Jersey</option>
+            <option value="NM">New Mexico</option>
+            <option value="NY">New York</option>
+            <option value="NC">North Carolina</option>
+            <option value="ND">North Dakota</option>
+            <option value="OH">Ohio</option>
+            <option value="OK">Oklahoma</option>
+            <option value="OR">Oregon</option>
+            <option value="PA">Pennsylvania</option>
+            <option value="RI">Rhode Island</option>
+            <option value="SC">South Carolina</option>
+            <option value="SD">South Dakota</option>
+            <option value="TN">Tennessee</option>
+            <option value="TX">Texas</option>
+            <option value="UT">Utah</option>
+            <option value="VT">Vermont</option>
+            <option value="VA">Virginia</option>
+            <option value="WA">Washington</option>
+            <option value="WV">West Virginia</option>
+            <option value="WI">Wisconsin</option>
+            <option value="WY">Wyoming</option>
+          `;
+          //Append select to div
+          filterDiv.appendChild(stateSelect);
 
-    view.ui.add(legendExpand, "top-right");
-
-    // Add a drop down to filter feature layer by state
-    view.when(() => {
-      stateSelect = document.createElement("select");
-      stateSelect.id = "stateSelect";
-      stateSelect.innerHTML = `
-    <option value ="None">None</option>
-    <option value="AL">Alabama</option>
-    <option value="AK">Alaska</option>
-    <option value="AZ">Arizona</option>
-    <option value="AR">Arkansas</option>
-    <option value="CA">California</option>
-    <option value="CO">Colorado</option>
-    <option value="CT">Connecticut</option>
-    <option value="DE">Delaware</option>
-    <option value="FL">Florida</option>
-    <option value="GA">Georgia</option>
-    <option value="HI">Hawaii</option>
-    <option value="ID">Idaho</option>
-    <option value="IL">Illinois</option>
-    <option value="IN">Indiana</option>
-    <option value="IA">Iowa</option>
-    <option value="KS">Kansas</option>
-    <option value="KY">Kentucky</option>
-    <option value="LA">Louisiana</option>
-    <option value="ME">Maine</option>
-    <option value="MD">Maryland</option>
-    <option value="MA">Massachusetts</option>
-    <option value="MI">Michigan</option>
-    <option value="MN">Minnesota</option>
-    <option value="MS">Mississippi</option>
-    <option value="MO">Missouri</option>
-    <option value="MT">Montana</option>
-    <option value="NE">Nebraska</option>
-    <option value="NV">Nevada</option>
-    <option value="NH">New Hampshire</option>
-    <option value="NJ">New Jersey</option>
-    <option value="NM">New Mexico</option>
-    <option value="NY">New York</option>
-    <option value="NC">North Carolina</option>
-    <option value="ND">North Dakota</option>
-    <option value="OH">Ohio</option>
-    <option value="OK">Oklahoma</option>
-    <option value="OR">Oregon</option>
-    <option value="PA">Pennsylvania</option>
-    <option value="RI">Rhode Island</option>
-    <option value="SC">South Carolina</option>
-    <option value="SD">South Dakota</option>
-    <option value="TN">Tennessee</option>
-    <option value="TX">Texas</option>
-    <option value="UT">Utah</option>
-    <option value="VT">Vermont</option>
-    <option value="VA">Virginia</option>
-    <option value="WA">Washington</option>
-    <option value="WV">West Virginia</option>
-    <option value="WI">Wisconsin</option>
-    <option value="WY">Wyoming</option>
-  `;
-      // Create a div
-      const filterDiv = document.createElement("div");
-      filterDiv.id = "filterDiv";
-      filterDiv.innerHTML = `<label for="stateSelect">View by State:</label>`;
-      filterDiv.appendChild(stateSelect);
-
-      // Add it to the legendContainer (Hard-coded - May not be the best way?)
-      const legendContainer = document.querySelector(".esri-legend"); // esri-expand__popover-content
-
-      if (legendContainer) {
-        legendContainer.appendChild(filterDiv);
-      } else {
-        console.error("Legend container not found.");
-      }
-      
-    });
-    
-    //********************** Search  **********************//
-    const searchWidget = new Search({
-      view: view
-    });
-
-    view.ui.add(searchWidget, {
-      position: "top-right"
-    });
-
-    //********************** Toggle between Bird eye & Top Views  **********************//
-    const button = document.getElementById("toggleView");
-    button.addEventListener("click", () => {
-      if (button.innerHTML == "Top view") {
-        button.innerHTML = "Bird eye's view";
-      } else {
-        button.innerHTML = "Top view";
-      }
-      view.goTo(view.camera.tilt < 1 ? { tilt: 80 } : { tilt: 0 }).catch((error) => {
-        if (error.name !== "AbortError") {
-          console.error(error);
+          // Add it to the legendContainer (Hard-coded - May not be the best way?)
+          legendContainer.appendChild(filterDiv);
+          if (stateSelect && stateSelect.innerHTML.trim !== "") {
+            // Get Current Location and State to update Filter
+            getCurrentLocationAndState();
+          } else {
+            console.error("State Select is empty.");
+          }
+          
+        } else {
+          console.error("Legend container not found.");
         }
+      }, 1000); // Delay to ensure the Legend widget is rendered
+ 
+      track.start(); // Blue Dot
+
+      //********************** Toggle between Bird eye & Top Views  **********************//
+      const button = document.getElementById("toggleView");
+      button.addEventListener("click", () => {
+        if (button.innerHTML == "Top view") {
+          button.innerHTML = "Bird eye's view";
+        } else {
+          button.innerHTML = "Top view";
+        }
+        webscene.view.goTo(webscene.view.camera.tilt < 1 ? { tilt: 80 } : { tilt: 0 }).catch((error) => {
+          if (error.name !== "AbortError") {
+            console.error(error);
+          }
+        });
       });
-    });
-  });
+    }); // end of event listener
+     
+  }
+)}
+
+//********************** Update State Filter Function **********************//
+function updateStateFilter() {
+  selectedState = stateSelect.value; // Update selectedState global variable from dropDown
+  console.log("selectedState in updateStateFilter", selectedState);
+  // dynamically update the map and POIs whenever the user selects a different state
+  stateSelect.addEventListener("change", updateStateFilter);
+  if (selectedState) {
+      pointsLayer.definitionExpression = `STATE = '${selectedState}'`;
+      console.log("Updated US state: " + `${selectedState}`);
+
+      // Clear existing POIs
+      const existingPOIs = document.querySelectorAll('[gps-entity-place]');
+      existingPOIs.forEach(poi => poi.parentNode.removeChild(poi));
+
+      // Load new POI data based on the selected state
+      loadPOIData();
+  } else {
+      console.log("No state selected");
+  }
+}
+
+//********************** Get Current State from geolocation API & Locator **********************//
+function getCurrentLocationAndState() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        // Reverse Geocoding to Get the State
+        const locatorUrl = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+
+        // Only assign default US state once
+        if (!isUSStateAssigned) {
+          require(["esri/rest/locator"], (locator) => {
+            locator.locationToAddress(locatorUrl, {
+              location: {
+                x: longitude,
+                y: latitude
+              }
+            })
+              .then(function(response) {
+                defaultUSState = response.attributes.RegionAbbr; // Get the state abbreviation
+                console.log("US State from Location Tracking:", defaultUSState);
+
+                // Update the selected state
+                selectedState = defaultUSState;
+                if (stateSelect) {
+                  stateSelect.value = defaultUSState; // Update the dropdown
+                }
+
+                // Set the flag to true after assigning the state
+                isUSStateAssigned = true;
+
+                // Call updateStateFilter only after assigning defaultUSState
+                updateStateFilter();
+              })
+              .catch(function(error) {
+                console.error("Error in reverse geocoding:", error);
+              });
+          });
+        } else {
+          console.log("Default US state is already assigned:", defaultUSState);
+        }
+
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        if (error.code === error.PERMISSION_DENIED) {
+          console.error("User denied the request for Geolocation.");
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          console.error("Position unavailable.");
+        } else if (error.code === error.TIMEOUT) {
+          console.error("Geolocation request timed out.");
+        }
+      },
+      { enableHighAccuracy: true }
+    );
+  } else {
+    console.error("Geolocation is not supported by this browser.");
+  }
 }
 
 //** Compass Heading *//
@@ -1275,6 +1233,7 @@ function isCompassReliable(event) {
 
 // Update Debug overlay when gps and motion data are available
 function updateOverlayText() {
+  console.log("updateOverlayText is called", "gpsReady: ", gpsReady, "motionReady: ", motionReady);
   // debugOverlay.innerHTML = ""; // Clear previous overlay text;
 
   const gpsLat = useFilteredData ? filteredLat : lat;
@@ -1286,7 +1245,7 @@ function updateOverlayText() {
     // Both GPS and motion data are ready
     overlayText = `
       Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
-      WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
+      WebScene Heading: ${webscene.view.camera.heading.toFixed(2)}°<br>
       Lat: ${gpsLat !== null ? gpsLat.toFixed(10) : "N/A"}, 
       Lon: ${gpsLon !== null ? gpsLon.toFixed(10) : "N/A"}
     `;
@@ -1303,7 +1262,7 @@ function updateOverlayText() {
     // Only motion data is ready
     overlayText = `
       Heading: ${smoothedHeading !== null ? smoothedHeading.toFixed(2) : "N/A"}°,  
-      WebScene Heading: ${view.camera.heading.toFixed(2)}°<br>
+      WebScene Heading: ${webscene.view.camera.heading.toFixed(2)}°<br>
       Waiting for GPS data...
     `;
     debugOverlay.innerHTML = overlayText;
@@ -1374,6 +1333,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // });
 
 // Function to toggle the data source
+
 function toggleDataSource() {
   useFilteredData = !useFilteredData;
   document.getElementById('toggleGPSButton').textContent = useFilteredData ? 'Use Raw GPS' : 'Use Filtered GPS';
