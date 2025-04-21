@@ -11,8 +11,8 @@
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.32/"></script>
-  <!-- Include Kalman Filter library via CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/kalmanjs@1.1.0/lib/kalman.min.js"></script>
+  <!-- Load Map components from CDN-->
+  <script type="module" src="https://js.arcgis.com/map-components/4.32/arcgis-map-components.esm.js"></script>
   <style>
     body {
       margin: 0;
@@ -229,7 +229,6 @@
 </head>
 
 <body>
-
   <div id="my-ar-container"></div>
   <div id="debug-overlay">Fetching..</div>
   <div id="loadingIndicator">Loading Points of Interest Near You</div>
@@ -242,21 +241,7 @@
     </div>
   </div>
  
-
-
   <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true;'>
-    <!-- Combined GPS & Heading Display -->
-    <!-- User's Current Location -->
-    <a-entity id="user-location">
-      <a-text 
-      id="info-text"
-      value=""
-      look-at="[gps-camera]"
-      scale="50 50 50"
-      gps-entity-place="latitude: 0; longitude: 0;"
-      position="0 3 -5"
-  ></a-text>
-      </a-entity>
       <a-camera gps-camera rotation-reader>
         <a-entity
           id="raycaster-entity"
@@ -273,29 +258,24 @@
 
   <div id="bottom-container">
     <div id="resizer"></div>
-    <div id="viewDiv" class"esri-widget"></div>
-  </div>
-
-  <!-- Change Call Out Styles  -->
-  <div id="cityStyle">
-    <!-- <input type="checkbox" id="callout" name="mode" checked />
-    <label for="callout">Set callout lines on icons</label> -->
-    <!-- <input type="checkbox" id="declutter" name="mode" checked />
-    <label for="declutter">Declutter view</label>
-    <input type="checkbox" id="perspective" name="mode" checked />
-    <label for="perspective">Improve icon perspective</label> -->
-    <!-- <input type="checkbox" id="relative-to-scene" name="mode" checked />
-    <label for="relative-to-scene">Align icon to building height</label> -->
+    <div id="viewDiv">
+      <arcgis-scene id="scene">
+          <arcgis-zoom position="top-left"> </arcgis-zoom>
+          <arcgis-navigation-toggle position="top-left" id="navigation-toggle"> </arcgis-navigation-toggle>
+          <arcgis-compass position="top-left"> </arcgis-compass>
+          <arcgis-track position="top-left" id ="track"></arcgis-track>
+          <arcgis-expand position="top-right" id="legend-expand">
+            <arcgis-legend id="legend">
+            </arcgis-legend>
+          </arcgis-expand>
+          <arcgis-search position="top-right" id="search"></arcgis-search>
+      </arcgis-scene>
+    </div>
   </div>
 
   <!-- Toggle Views Among Three Set Locations -->
   <calcite-button id="toggleView">Toggle</calcite-button>
-  <!-- <div id="locationButtons">
-    <calcite-button class="locationButton" appearance="outline" onclick="goToLocation('oahu')">Oahu</calcite-button>
-    <calcite-button class="locationButton" appearance="outline" onclick="goToLocation('redlands')">Redlands</calcite-button>
-    <calcite-button class="locationButton" appearance="outline" onclick="goToLocation('sanMateo')">San Mateo</calcite-button>
-  </div> -->
 </body>
 <!-- App.js gets called after DOM -->
-<script src="app.js"></script>
+<script src="app.js" type="module"></script>
 </html>
