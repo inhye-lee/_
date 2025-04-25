@@ -13,6 +13,9 @@
         color: #333;
         margin: 0;
         padding: 20px;
+        width: auto;
+        max-width: 100%;
+        overflow-x: hidden; /* Prevent horizontal overflow */
     }
 
     h1 {
@@ -88,8 +91,26 @@
         background-color: #005bb5;
     }
 
+    .link-button {
+        display: block;
+        background-color: #04ad9ac5; /* Blue */
+        color: white;
+        text-align: left;
+        text-decoration: none;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 10px;
+        font-size: 1.0em;
+        /* font-weight: bold; */
+    }
+
+    .link-button:hover {
+        background-color: #048a81; /* Darker blue */
+        text-decoration: none;
+    }
+
     /* Responsive styles */
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
         body {
             padding: 10px;
         }
@@ -127,28 +148,12 @@
         }
 
         .link-button {
-            font-size: 1em;
+            font-size: 1.5em;
             padding: 12px 16px;
         }
     }
 
-    .link-button {
-        display: block;
-        background-color: #04ad9ac5; /* Blue */
-        color: white;
-        text-align: left;
-        text-decoration: none;
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 10px;
-        font-size: 1.0em;
-        /* font-weight: bold; */
-    }
 
-    .link-button:hover {
-        background-color: #048a81; /* Darker blue */
-        text-decoration: none;
-    }
 
   </style>
 </head>
