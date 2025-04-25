@@ -17,7 +17,7 @@
 
     h1 {
         font-size: 2.5em;
-        color: #1a73e8; /* Blue */
+        color: #1a1b1b; /* Blue */
         margin: 20px 0;
         font-weight: bold;
     }
@@ -125,15 +125,39 @@
         button {
             padding: 8px 16px;
         }
+
+        .link-button {
+            font-size: 1em;
+            padding: 12px 16px;
+        }
     }
+
+    .link-button {
+        display: block;
+        background-color: #04ad9ac5; /* Blue */
+        color: white;
+        text-align: left;
+        text-decoration: none;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 10px;
+        font-size: 1.0em;
+        /* font-weight: bold; */
+    }
+
+    .link-button:hover {
+        background-color: #048a81; /* Darker blue */
+        text-decoration: none;
+    }
+
   </style>
 </head>
 
 <body>
  
-  <h2>Tests</h3>
-  <li><a href="./1_main/">April 21 version - ES6, Error Removed </a></li>
-  <li><a href="./2_tiltTest/">April 24 version - Tilt Test</a></li>
+  <h1>Tests</h1>
+  <a href="./1_main/" class="link-button">April 21 version - ES6, Error Removed </a> 
+  <a href="./2_tiltTest/" class="link-button">April 24 version - Tilt Test</a>
 
    
   
