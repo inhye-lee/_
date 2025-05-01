@@ -177,6 +177,16 @@ AFRAME.registerComponent('raycaster-handler', {
     onMouseDown: function () {
       this.longPressTimeout = setTimeout(() => { // Start the long-press timer
         this.isLongPressed = !this.isLongPressed; // Toggle the long-press state
+
+      // Trigger haptic feedback (Not working on iOS Safaru)
+      if (navigator.vibrate) {
+        if (this.isLongPressed) {
+          navigator.vibrate(200); // Vibrate for 200ms when pinning
+        } else {
+          navigator.vibrate([100, 50, 100]); // Vibrate with a pattern when unpinning
+        }
+      }
+
       }, this.data.longPressDuration); // Trigger after the specified duration
     },
   
