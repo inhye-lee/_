@@ -1,5 +1,6 @@
 let centeredPOI = null; // Variable to track the currently centered POI
 
+
 AFRAME.registerComponent('raycaster-handler', {
     init: function () {
       const raycasterEl = document.querySelector('#raycaster-camera');
@@ -27,7 +28,8 @@ AFRAME.registerComponent('raycaster-handler', {
     schema: {
       full: { type: 'string', default: '' }, // Full text for the POI
       threshold: { type: 'number', default: THREE.MathUtils.degToRad(5) }, // Threshold in radians (5 degrees by default)
-      longPressDuration: { type: 'number', default: 1000 } // Long press duration in milliseconds
+      longPressDuration: { type: 'number', default: 1000 }, // Long press duration in milliseconds
+      initialTextScale: { type: 'vec3', default: { x: 1, y: 1, z: 1 } } // Default initial scale
     },
   
     init: function () {
@@ -38,6 +40,7 @@ AFRAME.registerComponent('raycaster-handler', {
       this.isFading = false; // Tracks if the POI is currently fading in or out
       this.isLongPressed = false; // Tracks if the title is toggled by a long press
       this.longPressTimeout = null; // Timeout for detecting long press
+      this.initialScale = this.data.initialTextScale; // Initial scale for the text
   
       // Get the text element and connecting line inside the POI
       const textEntity = el.querySelector('.poi-text');
@@ -47,6 +50,7 @@ AFRAME.registerComponent('raycaster-handler', {
       // Initialize the text and connecting line visibility
       if (textParent) {
         textParent.setAttribute('visible', false); // Hide the text by default
+        textParent.setAttribute('scale', `${this.initialScale.x} ${this.initialScale.y} ${this.initialScale.z}`);
       }
       if (connectingLine) {
         connectingLine.setAttribute('visible', false); // Hide the connecting line by default
@@ -54,8 +58,6 @@ AFRAME.registerComponent('raycaster-handler', {
   
       this.textParent = textParent;
       this.connectingLine = connectingLine;
-
-      //
       this.textEntity = textEntity;
   
       // Add long-press event listeners
@@ -70,13 +72,11 @@ AFRAME.registerComponent('raycaster-handler', {
   
       // Skip centered logic if the title is toggled by a long press
       if (this.isLongPressed) {
-        // console.log('Long press detected on POI:', this.el);
         this.fadeIn();
       
       } else {
         // Hide the title unless the POI is centered
         if (this.el !== centeredPOI) {
-          // console.log('Long press detected on POI again:', this.el);
           this.fadeOut();
         }
       }
@@ -129,9 +129,15 @@ AFRAME.registerComponent('raycaster-handler', {
         this.textParent.setAttribute('visible', true); // Ensure the parent is visible
 
         const bgColor = this.isLongPressed ? '#008080' : 'black'; // Teal Blue for long press, Black for default
-        const padding = this.isLongPressed ? 0.25 : 0.2; // Larger padding for long press
-        const opacity = this.isLongPressed ? 1 : 1; // Higher opacity for long press
+        const padding = this.isLongPressed ? 0.25 : 0.15; // Larger padding for long press
+        const opacity = this.isLongPressed ? 1 : 0.8; // Higher opacity for long press
 
+        if (!this.isLongPressed) {
+          this.textParent.setAttribute('scale', `${this.initialScale.x} ${this.initialScale.y} ${this.initialScale.z}`); // Reset to final scale
+        } else {
+          this.textParent.setAttribute('scale', `${this.initialScale.x} ${this.initialScale.y} ${this.initialScale.z}`); // Reset to final scale
+        }
+        
         this.textEntity.setAttribute('text-background', {
           color: bgColor,
           padding: padding,
@@ -155,19 +161,20 @@ AFRAME.registerComponent('raycaster-handler', {
       if (this.textParent) {
         this.textParent.setAttribute('visible', false); // Hide the parent container
 
+        // Reset the scale to its initial value
+        this.textParent.setAttribute('scale', `${this.initialScale.x} ${this.initialScale.y} ${this.initialScale.z}`); // Reset to final scale
+
         // Reset the background color to default using getAttribute and setAttribute
         const textBackground = this.textEntity.getAttribute('text-background');
         this.textEntity.setAttribute('text-background', {
           ...textBackground, // Preserve existing properties
           color: 'black' // Reset to default color
         });
-
       }
   
       if (this.connectingLine) {
         this.connectingLine.setAttribute('visible', false); // Hide the connecting line
       }
-  
       
       setTimeout(() => {
         this.isFading = false; // Reset fading state after fade-out
@@ -178,13 +185,47 @@ AFRAME.registerComponent('raycaster-handler', {
       this.longPressTimeout = setTimeout(() => { // Start the long-press timer
         this.isLongPressed = !this.isLongPressed; // Toggle the long-press state
 
-      // Trigger haptic feedback (Not working on iOS Safaru)
-      if (navigator.vibrate) {
-        if (this.isLongPressed) {
-          navigator.vibrate(200); // Vibrate for 200ms when pinning
-        } else {
-          navigator.vibrate([100, 50, 100]); // Vibrate with a pattern when unpinning
+        // Trigger haptic feedback (Not working on iOS)
+        if (navigator.vibrate) {
+          if (this.isLongPressed) {
+            navigator.vibrate(200); // Vibrate for 200ms when pinning
+          } else {
+            navigator.vibrate([100, 50, 100]); // Vibrate with a pattern when unpinning
+          }
         }
+
+        // Use the initial scale to calculate the popping animation
+        const fromScale = {
+          x: this.initialScale.x * 0.3, // Start at half the initial scale
+          y: this.initialScale.y * 0.3,
+          z: this.initialScale.z * 0.3
+        };
+        const toScale = {
+            x: this.initialScale.x *1.0, // End at the initial scale
+            y: this.initialScale.y *1.0,
+            z: this.initialScale.z *1.0
+          };
+        
+      // Popping Animation Does not work all the time...
+      if (this.isLongPressed) {
+        // Add a popping animation by scaling up the textParent
+        this.textParent.setAttribute('animation__pop', {
+          property: 'scale',
+          from: `${fromScale.x} ${fromScale.y} ${fromScale.z}`, // Start smaller
+          to: `${toScale.x} ${toScale.y} ${toScale.z}`, // End at the current scale
+          dur: 500, // Duration of the animation in milliseconds
+          easing: 'easeOutElastic', // Easing function for a smooth pop effect
+          loop: false // Ensure the animation happens only once
+        });
+        // Remove the animation after it completes
+        setTimeout(() => {
+          this.textParent.setAttribute('scale', `${toScale.x} ${toScale.y} ${toScale.z}`); // Reset to final scale
+          this.textParent.removeAttribute('animation__pop'); // Remove the animation attribute
+        }, 500); // Match the duration of the animation
+      } else {
+        // Reset the animation if not long pressed
+        this.textParent.removeAttribute('animation__pop');
+        this.textParent.setAttribute('scale', `${toScale.x} ${toScale.y} ${toScale.z}`); // Ensure scale is reset
       }
 
       }, this.data.longPressDuration); // Trigger after the specified duration

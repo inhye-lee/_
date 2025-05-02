@@ -371,7 +371,8 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   entity.classList.add('clickable');
   image.classList.add('clickable'); //* Fix: clickable class had to be added to the child
   // Add the toggle-title attribute to the entity
-  entity.setAttribute('toggle-title', `full: ${fullText}; longPressDuration: 1000;`);
+  entity.setAttribute('toggle-title', `full: ${fullText}; longPressDuration: 1000; initialTextScale: ${textParentScale} ${textParentScale} ${textParentScale};`);
+  // entity.setAttribute('toggle-title', `full: ${fullText}; longPressDuration: 1000;`);
   // entity.setAttribute('toggle-title', `full: ${fullText};`); // Only full text for now
   entity.setAttribute('show-popup', 'content: Pop Up Data will be shown here'); // Show Pop up on click
   // Add look-at behavior after the entity is loaded
