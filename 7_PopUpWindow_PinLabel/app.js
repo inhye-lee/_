@@ -225,7 +225,7 @@ function updateScale(distance) {
 // Text Scaling to compensate the differences
 function updateTextScale(distance) {
   let updatedScale; 
-  let baseScale = 4.0; // Scaling that works for mid-range objects
+  let baseScale = 3.25; // Scaling that works for mid-range objects
   // Define the reference distance to clamp size for short & far
   const farThreshold = 2000; // (Based on Testing)
   const nearThreshold = 200; // Base Distance
@@ -393,7 +393,7 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   // entity.setAttribute('toggle-title', `full: ${fullText}; longPressDuration: 1000; initialTextScale: ${textParentScale} ${textParentScale} ${textParentScale};`);
   entity.setAttribute(
     'toggle-title',
-    `full: ${fullText}; longPressDuration: 1000; initialTextScale: ${textParentScale} ${textParentScale} ${textParentScale}; lineStartY: ${lineStart.y}; lineEndY: ${lineEnd.y}`
+    `full: ${fullText}; longPressDuration: 1000; initialTextScale: ${textParentScale} ${textParentScale} ${textParentScale}; lineStartY: ${lineStart.y}; lineEndY: ${lineEnd.y}; textParentScale: ${textParentScale}`
   );
     
   // Add the `show-popup` component with the POI data

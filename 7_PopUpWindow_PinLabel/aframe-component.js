@@ -29,7 +29,8 @@ AFRAME.registerComponent('raycaster-handler', {
       full: { type: 'string', default: '' }, // Full text for the POI
       threshold: { type: 'number', default: THREE.MathUtils.degToRad(5) }, // Threshold in radians (5 degrees by default)
       lineStartY: { type: 'number', default: 0 }, // Initial Y position of the connecting line's start
-      lineEndY: { type: 'number', default: 0 } // Initial Y position of the connecting line's end
+      lineEndY: { type: 'number', default: 0 }, // Initial Y position of the connecting line's end
+      textParentScale: { type: 'number', default: 1 } // Scale of the text parent
     },
   
     init: function () {
@@ -40,7 +41,8 @@ AFRAME.registerComponent('raycaster-handler', {
       this.isPopUpOpen = false; // Tracks if the pop-up is open
       this.isPinned = false; // Tracks if the title is pinned
       this.originalPosition = null; // Original position of the text element
-  
+      this.defaultScl = this.data.textParentScale;
+
       // Get the text element and connecting line inside the POI
       const textEntity = el.querySelector('.poi-text');
       const textParent = textEntity ? textEntity.parentNode : null;
@@ -60,6 +62,7 @@ AFRAME.registerComponent('raycaster-handler', {
   
       this.textParent = textParent;
       this.connectingLine = connectingLine;
+      this.textEntity = textEntity;
   
         // Set the initial connecting line position and scale
       this.updateConnectingLine();
@@ -151,7 +154,7 @@ AFRAME.registerComponent('raycaster-handler', {
     
         // Get the base position of the POI 
         const basePosition = { x: 0, y: this.data.lineStartY, z: 0 };
-        const endPosition = { x: 0, y: textPosition.y + 0.75, z: 0 };
+        const endPosition = { x: 0, y: textPosition.y +0.5, z: 0 };
     
         // Calculate the distance between the textParent and the base position
         const distance = Math.sqrt(
@@ -200,8 +203,8 @@ AFRAME.registerComponent('raycaster-handler', {
         this.textParent.removeAttribute('animation__scale'); // Remove any existing scale animation
         this.textParent.setAttribute('animation__scale', {
           property: 'scale',
-          from: '1.5 1.5 1.5', // Start from the regular style scale
-          to: '1.8 1.8 1.8', // Scale up to the pinned style
+          from: `${this.defaultScl} ${this.defaultScl} ${this.defaultScl}`, // Start from the regular style scale
+          to: `${this.defaultScl*1.5} ${this.defaultScl*1.5} ${this.defaultScl*1.5}`, // Scale up to the pinned style
           dur: 200, // Duration of the animation in milliseconds
           easing: 'easeOutQuad', // Easing function for a smooth effect
           loop: false // Ensure the animation happens only once
@@ -267,10 +270,11 @@ AFRAME.registerComponent('raycaster-handler', {
         this.textParent.setAttribute('visible', true); // Ensure the parent is visible
 
         // Animate the scale to the regular style
+        this.textParent.removeAttribute('animation__scale'); // Remove any existing scale animation
         this.textParent.setAttribute('animation__scale', {
           property: 'scale',
-          from: '1.8 1.8 1.8', // Start from the pinned style scale
-          to: '1.5 1.5 1.5', // Scale down to the regular style
+          from: `${this.defaultScl*1.5} ${this.defaultScl*1.5} ${this.defaultScl*1.5}`,// Start from the pinned style scale
+          to: `${this.defaultScl} ${this.defaultScl} ${this.defaultScl}`, // Scale down to the regular style
           dur: 200, // Duration of the animation in milliseconds
           easing: 'easeOutQuad', // Easing function for a smooth effect
           loop: false // Ensure the animation happens only once
