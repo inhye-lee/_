@@ -145,13 +145,13 @@
 
     #resizer {
       position: absolute;
-      top: 0;
+      top: -20px; /*To vertically center the resizer img*/
       left: 50%;
       transform: translateX(-50%);
       width: 40px;
-      height: 10px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 5px;
+      height: 40px;
+      /* background: rgba(255, 255, 255, 0.5); */
+      border-radius: 999px;
       cursor: ns-resize;
       z-index: 11;
     }
@@ -349,7 +349,7 @@
   <div id="debug-overlay">Fetching..</div>
   <div id="loadingIndicator">Loading Points of Interest Near You</div>
   <div id="control-container">
-    <button id="toggleGPSButton">Use Raw GPS</button>
+    <!-- <button id="toggleGPSButton">Use Raw GPS</button> -->
     <div id="slider-container">
       <label for="distanceSlider">Distance: </label>
       <input type="range" id="distanceSlider" min="1000" max="10000" value="3000" step="100">

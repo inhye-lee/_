@@ -624,6 +624,50 @@ function enablePanelResizing() {
   let startHeight = 0;
   let startArHeight = 0;
 
+  //Use a custom img for resizer
+  if (resizer) {
+    // Set the resizer to use flexbox for centering
+    resizer.style.display = 'flex';
+    resizer.style.justifyContent = 'center'; // Center horizontally
+    resizer.style.alignItems = 'center'; // Center vertically
+  
+    // Create and style the image
+    const img = document.createElement('img');
+    img.src = './assets/ui/SplitDrag.svg'; // Set the image path
+    img.alt = 'Resizer';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover'; 
+    img.style.filter = 'drop-shadow(0px 6px 20px -4px rgba(0, 0, 0, 0.10), 0px 4px 12px -2px rgba(0, 0, 0, 0.08))'; // Apply a drop shadow
+
+   
+    // Append the image to the resizer
+    resizer.appendChild(img);
+
+    // Add a slight background color when pressed
+    resizer.addEventListener('mousedown', () => {
+      resizer.style.backgroundColor = 'white';
+      img.style.transform = 'scale(1.5)'; // Increase size 
+    });
+
+    // Reset background color when released
+    resizer.addEventListener('mouseup', () => {
+      resizer.style.backgroundColor = ''; // Reset to default
+      img.style.transform = 'scale(1)'; // Reset to original size
+    });
+
+    // Handle touch events for mobile devices
+    resizer.addEventListener('touchstart', () => {
+      resizer.style.backgroundColor = 'white';
+      img.style.transform = 'scale(1.5)'; 
+    });
+
+    resizer.addEventListener('touchend', () => {
+      resizer.style.backgroundColor = ''; 
+      img.style.transform = 'scale(1)';
+    });
+  }
+
   const startResize = (event) => {
     isResizing = true;
 
@@ -1399,16 +1443,15 @@ document.addEventListener("DOMContentLoaded", () => {
 //   }
 // });
 
-// Function to toggle the data source
-
-function toggleDataSource() {
-  useFilteredData = !useFilteredData;
-  document.getElementById('toggleGPSButton').textContent = useFilteredData ? 'Use Raw GPS' : 'Use Filtered GPS';
-  console.log("useFilteredData: ", useFilteredData);
-}
+//**  */ Function to toggle the data source
+// function toggleDataSource() {
+//   useFilteredData = !useFilteredData;
+//   document.getElementById('toggleGPSButton').textContent = useFilteredData ? 'Use Raw GPS' : 'Use Filtered GPS';
+//   // console.log("useFilteredData: ", useFilteredData);
+// }
 
 // Add event listener to the toggleGPS button
-document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
+// document.getElementById('toggleGPSButton').addEventListener('click', toggleDataSource);
 
 // Add event listener to the slider to update thresholdDistance
 document.getElementById('distanceSlider').addEventListener('input', function(event) {
