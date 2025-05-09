@@ -388,19 +388,25 @@ function createPOIEntity(poi, userLatitude, userLongitude) {
   entity.classList.add('clickable');
   image.classList.add('clickable'); //* Fix: clickable class had to be added to the child
   // Add the toggle-title attribute to the entity
-  entity.setAttribute(
-    'toggle-title',
-    `full: ${fullText}; longPressDuration: 1000; initialTextScale: ${textParentScale} ${textParentScale} ${textParentScale}; lineStartY: ${lineStart.y}; lineEndY: ${lineEnd.y}; textParentScale: ${textParentScale}; haloYPosition: ${imageYOffset}; haloRadius: ${imageHeight / 2}`
-  );
+  entity.setAttribute('toggle-title',
+    `full: ${fullText}; 
+    lineStartY: ${lineStart.y}; 
+    lineEndY: ${lineEnd.y}; 
+    textParentScale: ${textParentScale}; 
+    haloYPosition: ${imageYOffset}; 
+    haloRadius: ${imageHeight / 2};`);
 
   // Add the `show-popup` component with the POI data
     const popupTitle = `<b>${poi.name}</b>`;
     const popupContent = `
     <b>Address</b>: ${poi.street || 'N/A'}, ${poi.city || 'N/A'}, ${poi.state || 'N/A'}, ${poi.zip || 'N/A'}<br>
-    <b>Coordinates</b>: ${poi.latitude.toFixed(4)}, ${poi.longitude.toFixed(4)} (Lat, Lng)<br>
-    <b>Distance</b>: ${formattedDistance}
+    <b>Coordinates</b>: ${poi.latitude.toFixed(4)}, ${poi.longitude.toFixed(4)} (Lat, Lng)
   `;
-  entity.setAttribute('show-popup', `title: ${popupTitle}; content: ${popupContent}`);
+  entity.setAttribute('show-popup', 
+    `title: ${popupTitle}; 
+    distance: ${formattedDistance}; 
+    content: ${popupContent}; 
+    labelImage: ${imageSrc};`);
   
   // Add look-at behavior after the entity is loaded
   entity.addEventListener('loaded', () => {

@@ -32,7 +32,8 @@ AFRAME.registerComponent('raycaster-handler', {
       lineEndY: { type: 'number', default: 0 }, // Initial Y position of the connecting line's end
       textParentScale: { type: 'number', default: 1 }, // Scale of the text parent
       haloYPosition: { type: 'number', default: 0 }, // Y position of the halo
-      haloRadius: { type: 'number', default: 1 } // Radius of the halo
+      haloRadius: { type: 'number', default: 1 }, // Radius of the halo
+       // Image URL for the label`
     },
   
     init: function () {
@@ -228,7 +229,7 @@ AFRAME.registerComponent('raycaster-handler', {
           halo.setAttribute('animation__opacity', {
             property: 'opacity',
             from: 0,
-            to: 0.85,
+            to: 0.9,
             dur: 200, // Duration of the animation in milliseconds
             easing: 'easeOutQuad', // Easing function for a smooth effect
             loop: false // Ensure the animation happens only once
@@ -478,7 +479,9 @@ AFRAME.registerComponent('raycaster-handler', {
   AFRAME.registerComponent('show-popup', {
     schema: {
       title: { type: 'string', default: '' },
-      content: { type: 'string', default: '' }
+      distance: { type: 'string', default: '' },
+      content: { type: 'string', default: '' },
+      labelImage: { type: 'string', default: '' },
     },
   
     init: function () {
@@ -534,13 +537,21 @@ AFRAME.registerComponent('raycaster-handler', {
         document.body.appendChild(popup);
       }
 
+      // this.labelImg = this.data.labelImage;
       // Populate the pop-up with the title and content
       popup.innerHTML = `
-      <div class="title" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
-        <h2 style="margin: 0; text-align: left; font-weight: normal;"><b>Shelter Location</b></h2>
-        <button id="popup-close" style="margin: 0; padding: 0; background: none; border: none; cursor: pointer;">
-          <img src="./assets/ui/CloseButton_sm.svg" alt="Close" style="width: 30px; height: 30px;">
-        </button>
+      <div class="title" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex: 1 0 0; width: 100%;">
+        <div style="display: flex;align-items: center; gap: 8px; flex: 1 0 0;">  
+          <img width="40px" height="40px" src ='${this.data.labelImage}' width>
+          <h2 style="margin: 0; text-align: left; font-weight: normal;"><b>Shelter</b></h2>
+        </div>
+        <div style="display: flex; justify-content: right; align-items: right; align-items: baseline; flex: 1 0 0; gap: 8px;">
+          <span style="font-size: 12px; color: var(--Black, #000); text-align: right; ">${this.data.distance} away</span>
+          <button id="popup-close" style="margin: 0; padding: 0; background: none; border: none; cursor: pointer;">
+            <img src="./assets/ui/CloseButton_sm.svg" alt="Close" style="width: 30px; height: 30px;">
+          </button>
+        </div>
+        
       </div>
       <div class="title2" style="text-align: left; width: 100%; margin-bottom: 10px;">${this.data.title}</div>
       <p style="text-align: left; width: 100%; margin-top: 0;">${this.data.content}</p>
