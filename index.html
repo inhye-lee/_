@@ -1,181 +1,88 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>AR Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tests</title>
+    <style>
+        @font-face {
+            font-family: 'CustomFont';
+            src: url('./fonts/CustomFont.woff2') format('woff2'),
+                 url('./fonts/CustomFont.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
 
-  <style>
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f0f0f0;
-        color: #333;
-        margin: 0;
-        padding: 20px;
-        width: auto;
-        max-width: 100%;
-        overflow-x: hidden; /* Prevent horizontal overflow */
-    }
-
-    h1 {
-        font-size: 2.5em;
-        color: #1a1b1b; /* Blue */
-        margin: 20px 0;
-        font-weight: bold;
-    }
-
-    h2 {
-        font-size: 2em;
-        color: #34a853; /* Green */
-        margin: 18px 0;
-        font-weight: bold;
-    }
-
-    h3 {
-        font-size: 1.75em;
-        color: #fbbc05; /* Yellow */
-        margin: 16px 0;
-        font-weight: bold;
-    }
-
-    h4 {
-        font-size: 1.5em;
-        color: #ea4335; /* Red */
-        margin: 14px 0;
-        font-weight: bold;
-    }
-
-    h5 {
-        font-size: 1.25em;
-        color: #9e9e9e; /* Gray */
-        margin: 12px 0;
-        font-weight: bold;
-    }
-
-    h6 {
-        font-size: 1em;
-        color: #6d4c41; /* Brown */
-        margin: 10px 0;
-        font-weight: bold;
-    }
-
-    p {
-        line-height: 1.6;
-        margin: 10px 0;
-    }
-
-    a {
-        color: #0066cc;
-        text-decoration: none;
-    }
-
-    a:hover {
-        text-decoration: underline;
-    }
-
-    ul, ol {
-        margin: 10px 0;
-        padding-left: 20px;
-    }
-
-    button {
-        background-color: #0066cc;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        cursor: pointer;
-    }
-
-    button:hover {
-        background-color: #005bb5;
-    }
-
-    .link-button {
-        display: block;
-        background-color: #04ad9ac5; /* Blue */
-        color: white;
-        text-align: left;
-        text-decoration: none;
-        /* padding: 10px; */
-        margin: 10px 0;
-        border-radius: 10px;
-        /* font-size: 1.0em; */
-
-        font-size: 1.5em;
-        padding: 20px 40px;
-        /* font-weight: bold; */
-    }
-
-
-    .link-button:hover {
-        background-color: #048a81; /* Darker blue */
-        text-decoration: none;
-    }
-
-    /* Responsive styles */
-    @media (max-width: 768px) {
         body {
-            padding: 10px;
+            font-family: 'CustomFont', Arial, sans-serif; /* Use your custom font */
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
         }
 
-        h1 {
-            font-size: 2em;
+        .columns {
+            display: flex;
+            flex-wrap: wrap; /* Ensure content wraps on smaller screens */
+            gap: 20px; /* Add space between columns */
         }
 
-        h2 {
-            font-size: 1.75em;
-        }
-
-        h3 {
-            font-size: 1.5em;
-        }
-
-        h4 {
-            font-size: 1.25em;
-        }
-
-        h5 {
-            font-size: 1em;
-        }
-
-        h6 {
-            font-size: 0.875em;
-        }
-
-        ul, ol {
-            padding-left: 15px;
-        }
-
-        button {
-            padding: 8px 16px;
+        .column {
+            flex: 1; /* Make columns take equal space */
+            min-width: 300px; /* Ensure columns don't shrink too much */
         }
 
         .link-button {
+            display: block;
+            background-color: #04ad9ac5; /* Blue */
+            color: white;
+            text-align: left;
+            text-decoration: none;
+            margin: 10px 0;
+            border-radius: 10px;
             font-size: 1.5em;
             padding: 20px 40px;
         }
-    }
 
+        .link-button:hover {
+            background-color: #048a81; /* Darker blue */
+            text-decoration: none;
+        }
 
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .columns {
+                flex-direction: column; /* Stack columns vertically on smaller screens */
+            }
 
-  </style>
+            .link-button {
+                font-size: 1.2em;
+                padding: 15px 20px;
+            }
+        }
+    </style>
 </head>
-
 <body>
- 
-  <h1>Tests</h1>
-  <a href="./8_POI_ActiveState/" class="link-button">May 9 v. POI Active State. Misc UI changes </a> 
-  <a href="./7_PopUpWindow_PinLabel/" class="link-button">May 7 v. Pop Up with Pinned Label </a> 
-  <a href="./6_PopUpWindow/" class="link-button">May 2 v. Pop Up Window Test </a> 
-  <a href="./5_PinningLabel/" class="link-button">May 1 v. Pinning & Unpinning w/1-sec-pressing</a>
-  <a href="./4_QuaternionTest/" class="link-button">April 29 v. Quaternion Test w/IMU </a>
-  <a href="./3_tiltTest_ImprovedUX/" class="link-button">April 25 v. - Tilt: Pre-condition for Compass </a>
-  <a href="./2_tiltTest/" class="link-button">April 24 v. - Webscene Tilt Test</a>
-  <a href="./1_main/" class="link-button">April 21 v. - ES6, Error Removed </a> 
-  
-
    
-  
+    <div class="columns">
+        <!-- First column -->
+        <div class="column">
+            <h1>Loc-based Test</h1>
+            <a href="./8_POI_ActiveState/" class="link-button">May 9 v. POI Active State. Misc UI changes</a>
+            <a href="./7_PopUpWindow_PinLabel/" class="link-button">May 7 v. Pop Up with Pinned Label</a>
+            <a href="./6_PopUpWindow/" class="link-button">May 2 v. Pop Up Window Test</a>
+            <a href="./5_PinningLabel/" class="link-button">May 1 v. Pinning & Unpinning w/1-sec-pressing</a>
+            <a href="./4_QuaternionTest/" class="link-button">April 29 v. Quaternion Test w/IMU</a>
+            <a href="./3_tiltTest_ImprovedUX/" class="link-button">April 25 v. - Tilt: Pre-condition for Compass</a>
+            <a href="./2_tiltTest/" class="link-button">April 24 v. - Webscene Tilt Test</a>
+            <a href="./1_main/" class="link-button">April 21 v. - ES6, Error Removed</a>
+        </div>
+
+        <div class="column">
+            <h1>Other</h1>
+            
+            <a href="./DetectionInAR/1.ObjectDetection/" class="link-button">May 12 v. Object Detection - Tensorflow in AR JS</a>
+           
+        </div>
+    </div>
 </body>
 </html>

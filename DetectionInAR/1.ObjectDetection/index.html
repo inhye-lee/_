@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR.js Object Detection</title>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      padding: 10px;
+      font-family: Arial, sans-serif; /* Set default font */
+    }
+
+    #ar-scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    video {
+    object-fit: cover; /* Ensures the video fills the container without distortion */
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+    #debug-text {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-size: 18px;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 20;
+    }
+
+     /* Add a CSS class for the bounding box */
+    .bounding-box {
+        position: absolute;
+        border: 2px solid rgba(0, 0, 255, 0.5); /* Semi-transparent blue border */
+        background-color: rgba(0, 0, 255, 0.1); /* Semi-transparent blue background */
+        pointer-events: none; /* Prevent interaction */
+        display: block; /* Initially hidden */
+        left: 0;
+        top: 0;
+        width: 100;
+        height: 100;
+    }
+  </style>
+</head>
+<body style="margin: 0; overflow: hidden;">
+  <!-- AR.js scene -->
+  <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; videoTexture: false; debugUIEnabled: false; cameraParameters: { resolution: 1280x720 }" renderer="antialias: true; alpha: true;">
+    <!-- "Waiting" -->
+    <!-- <a-box id="detected-object" position="0 1 -2" color="red" depth="0.5" height="0.5" width="0.5" visible="true"></a-box> -->
+    <a-camera></a-camera>
+  </a-scene> 
+
+  <!-- Debug text element -->
+  <div id="bounding-box" class="bounding-box"><span style="font-size: 1px">.</span></div> <!-- Bounding box element -->
+  <div id="debug-text">No object detected</div>  
+
+  <script>
+  const debugText = document.getElementById('debug-text');
+  const boundingBoxDiv = document.getElementById('bounding-box'); // bounding box UI element
+
+    async function detectObjects() {
+    // Load the COCO-SSD model
+    const model = await cocoSsd.load();
+    console.log('Model loaded:', model);
+
+    // Wait for the AR.js video element to be available
+    const waitForVideo = () => {
+        return new Promise((resolve) => {
+        const checkVideo = () => {
+            const video = document.querySelector('video'); // AR.js creates this hidden video element
+            if (video) {
+            resolve(video);
+            } else {
+            setTimeout(checkVideo, 100); // Retry after 100ms
+            }
+        };
+        checkVideo();
+        });
+    };
+
+    const video = await waitForVideo();
+    console.log('Video element found:', video);
+
+    // Ensure the video feed is playing
+    video.play();
+
+    // *Fix for Video not detecting when video is first diplayed: Wait for video metadata to load
+    await new Promise(resolve => {
+        video.onloadedmetadata = () => resolve();
+    });
+    console.log(`Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+
+    // Create a 3D bounding box
+    const scene = document.querySelector('a-scene');
+    const boundingBox = document.createElement('a-box');
+    boundingBox.setAttribute('color', 'rgba(0, 255, 0)'); // Semi-transparent green
+    boundingBox.setAttribute('opacity', '0.5'); // Semi-transparent
+    boundingBox.setAttribute('visible', 'false');
+    scene.appendChild(boundingBox);
+
+  const detect = async () => {
+    // Perform object detection
+    const predictions = await model.detect(video);
+    console.log('Predictions:', predictions); // Log predictions for debugging
+
+    if (predictions.length > 0) {
+      // Show the first detected object in the debug text
+      const detected = predictions[0];
+
+      // Get bounding box dimensions
+      const bbox = detected.bbox; // [x, y, width, height]
+      const [x, y, width, height] = bbox;
+
+    // Update debug text with object class, confidence, and bounding box dimensions
+    debugText.textContent = `Detected: ${detected.class} (Confidence: ${(detected.score * 100).toFixed(2)}%)
+Bounding Box: x=${x.toFixed(2)}, y=${y.toFixed(2)}, width=${width.toFixed(2)}, height=${height.toFixed(2)}`;
+
+    // Log bounding box dimensions for debugging
+    console.log(`Bounding box: x=${x}, y=${y}, width=${width}, height=${height}`);
+
+        // Map bounding box coordinates to A-Frame world coordinates
+        const videoWidth = video.videoWidth || 640; // Default to 640 if not initialized
+        const videoHeight = video.videoHeight || 480; // Default to 480 if not initialized
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        const scalingFactor = 10; // Adjust scaling factor as needed
+
+        // Calculate the center of the bounding box in normalized coordinates
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+
+        // Map the center coordinates to A-Frame world coordinates
+        const worldX = ((centerX / videoWidth) * 2 - 1) * aspectRatio * scalingFactor; // Scale X based on aspect ratio
+        const worldY = -((centerY / videoHeight) * 2 - 1) * scalingFactor; // Scale Y normally
+
+        // Scale the bounding box dimensions to A-Frame world coordinates
+        const worldWidth = (width / videoWidth) * 10;
+        const worldHeight = (height / videoHeight) * 10;
+
+        // Update the bounding box position and size
+        boundingBox.setAttribute('position', `${worldX} ${worldY} -5`); // Adjust Z as needed
+        boundingBox.setAttribute('width', worldWidth);
+        boundingBox.setAttribute('height', worldHeight);
+        boundingBox.setAttribute('depth', '0.05'); // Set depth for the 3D box
+        boundingBox.setAttribute('visible', 'true');
+
+        // 2D UI Element BooundingBoxDiv
+
+        // Position and size the bounding box overlay based on window dimensions
+        const videoRect = video.getBoundingClientRect(); // Get the video element's position and size
+        const windowWidth = window.innerWidth; // Get the window width
+        const windowHeight = window.innerHeight; // Get the window height
+
+        boundingBoxDiv.style.left = `${(x / video.videoWidth) * videoRect.width + videoRect.left}px`;
+        boundingBoxDiv.style.top = `${(y / video.videoHeight) * videoRect.height + videoRect.top}px`;
+        boundingBoxDiv.style.width = `${(width / video.videoWidth) * videoRect.width}px`;
+        boundingBoxDiv.style.height = `${(height / video.videoHeight) * videoRect.height}px`;
+        boundingBoxDiv.style.display = 'block'; // Show the bounding box
+    } else {
+      // No objects detected
+      debugText.textContent = 'No object detected';
+      boundingBox.setAttribute('visible', 'false');
+      boundingBoxDiv.style.display = 'none'; // Hide the bounding box
+    }
+
+    // Continue detection loop
+    requestAnimationFrame(detect);
+  };
+
+  detect();
+}
+
+detectObjects();
+  </script>
+</body>
+</html>
