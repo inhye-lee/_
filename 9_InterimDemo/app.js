@@ -1090,31 +1090,31 @@ function updateOrientation(event) {
     }
 
     // Update the rotation of the phone representation - A little issue when rolling, otherwise fine
-    const compassRepresentation = document.querySelector('#compass-representation');
-    if (compassRepresentation) {
-      compassRepresentation.setAttribute( // x y z rotation
-        'rotation',
-        `${-smoothedTilting.toFixed(2)} 
-        ${smoothedRolling.toFixed(2)}  
-        ${smoothedHeading.toFixed(2)}` 
-  );
-      // console.log(`compass-representation updated:
-      //   Heading: ${smoothedHeading.toFixed(2)}°,
-      //   Tilting: ${smoothedTilting.toFixed(2)}°,
-      //   Rolling: ${smoothedRolling.toFixed(2)}°`);
-    } else {
-      console.error("compass-representation not found.");
-    }
+  //   const compassRepresentation = document.querySelector('#compass-representation');
+  //   if (compassRepresentation) {
+  //     compassRepresentation.setAttribute( // x y z rotation
+  //       'rotation',
+  //       `${-smoothedTilting.toFixed(2)} 
+  //       ${smoothedRolling.toFixed(2)}  
+  //       ${smoothedHeading.toFixed(2)}` 
+  // );
+  //     // console.log(`compass-representation updated:
+  //     //   Heading: ${smoothedHeading.toFixed(2)}°,
+  //     //   Tilting: ${smoothedTilting.toFixed(2)}°,
+  //     //   Rolling: ${smoothedRolling.toFixed(2)}°`);
+  //   } else {
+  //     console.error("compass-representation not found.");
+  //   }
 
     // TEST Update the quaternion-rotator component
-    const deviceOrientationRepresentation = document.querySelector('#device-orientation-representation');
-    if (deviceOrientationRepresentation) {
-      deviceOrientationRepresentation.setAttribute('quaternion-rotator', {
-        heading: rawHeading,
-        tilting: rawTilting,
-        rolling: rawRolling
-      });
-    }
+    // const deviceOrientationRepresentation = document.querySelector('#device-orientation-representation');
+    // if (deviceOrientationRepresentation) {
+    //   deviceOrientationRepresentation.setAttribute('quaternion-rotator', {
+    //     heading: rawHeading,
+    //     tilting: rawTilting,
+    //     rolling: rawRolling
+    //   });
+    // }
   
     // Track if GPS location has moved significantly
     const gpsLat = useFilteredData ? filteredLat : lat;

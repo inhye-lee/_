@@ -110,9 +110,8 @@
     }
 
     #debug-overlay {
-      display: none; /*Hidden for presentation document*/
       position: absolute;
-      top: 10px;
+      top: -200px;  /*Hidden for presentation document*/
       left: 10px;
       right: 10px;
       background: rgba(0, 0, 0, 0.5);
@@ -360,7 +359,7 @@
  
   <a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true;'>
     <a-camera gps-camera rotation-reader>
-        <!-- <a-entity
+        <a-entity
           id="raycaster-entity"
           cursor="fuse: false; rayOrigin: mouse"
           geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
@@ -369,7 +368,7 @@
           visible ="false"
           raycaster="objects: .clickable; near: 0.1; far: 100000"
           >
-        </a-entity> -->
+        </a-entity>
         <!-- an object to represent the compass -->
         <!-- <a-box
           id="compass-representation" 
