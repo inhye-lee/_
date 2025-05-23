@@ -1061,7 +1061,7 @@ function updateOrientation(event) {
     const rawRolling = event.gamma; // Roll    
 
     // Always apply headingOffset to rawHeading
-    rawHeading = (360 - event.alpha + headingOffset + 360) % 360;
+    rawHeading = (360 - event.alpha - headingOffset + 360) % 360;
 
     // Always update the camera rig rotation
     const camera = document.getElementById('cameraRig');
