@@ -1502,9 +1502,9 @@ function prepareOrientationSetup() {
     } else {
       isAbsoluteOrientation = false;
         window.addEventListener("deviceorientation", (event) => {
-        window.lastOrientationEvent = event; // Store the latest event
-        updateOrientation(event);
-        updateOrientationIndicator();
+          window.lastOrientationEvent = event; // Store the latest event
+          updateOrientation(event);
+          updateOrientationIndicator();
       }, true);
     }
 
@@ -1524,8 +1524,7 @@ function prepareOrientationSetup() {
     document.getElementById('compassButton').disabled = true;
     document.getElementById('toggleView').disabled = true;
 
-    // Hide the manual heading message modal initially
-    headingMsg.style.display = 'none';
+    headingMsg.style.display = 'none'; // Hide the manual heading message modal initially
     orientationIndicator.style.display = 'flex'; // Show the orientation indicator
 
     // (2.1) Enable buttons only after "Okay" is clicked
@@ -1536,15 +1535,20 @@ function prepareOrientationSetup() {
       document.getElementById('toggleView').disabled = false;
     });
 
-    // (2.2) Add event listener for heading adjust button
-    toggleHeadingAdjBtn.addEventListener('click', () => {
-      adjustmentVisible = !adjustmentVisible;
-      manualControls.style.display = adjustmentVisible ? 'block' : 'none';
-      toggleHeadingAdjBtn.textContent = adjustmentVisible ? 'Hide Slider' : 'Adjust Heading';
-    });
-
-    // Hide controls initially
-    if (manualControls) manualControls.style.display = "none";
+    // (2.2) Always add event listener for heading adjust button
+    if (toggleHeadingAdjBtn) {
+      toggleHeadingAdjBtn.addEventListener('click', () => {
+        if (toggleHeadingAdjBtn.disabled) return; // Ignore clicks if disabled
+        adjustmentVisible = !adjustmentVisible;
+        if (adjustmentVisible) {
+          manualControls.style.display = 'block'; // Show the manual controls
+          toggleHeadingAdjBtn.textContent = 'Hide'; // Change button text to "Hide"
+        } else {
+          manualControls.style.display = 'none'; // Hide the manual controls
+          toggleHeadingAdjBtn.textContent = 'Adjust'; // Change button text to "Adjust"
+        }
+      });
+    }
 
     // Update headingOffset when slider changes
     if (manualSlider) {
@@ -1552,13 +1556,11 @@ function prepareOrientationSetup() {
         headingOffset = parseInt(this.value, 10);
         if (manualValue) manualValue.textContent = headingOffset;
         updateOrientation();
-      });
-    }
+    });
+  }
 
-    updateDisplay();
-    injectARScene(); /* Add AR Scene HERE */
-  // Show calibration modal after orientation listeners are set up
-  // showCalibrationModal();
+  updateDisplay();
+  injectARScene();
 }
 
 // * Show a Message for Motion-8 Drawing Calibration * //
@@ -1640,15 +1642,15 @@ function injectARScene() {
 
 function updateOrientationIndicator() {
   const orientationMode = document.getElementById('orientation-mode');
-  const manualControls = document.getElementById('manual-heading-controls');
+  // const manualControls = document.getElementById('manual-heading-controls');
   const indicator = document.getElementById('orientation-indicator');
 
   if (isAbsoluteOrientation) {
     orientationMode.textContent = "Absolute Orientation ";
-    manualControls.style.display = "none";
+    // manualControls.style.display = "none";
   } else {
     orientationMode.textContent = "Relative Orientation ";
-    manualControls.style.display = "block";
+    // manualControls.style.display = "none";
   }
 
   // Compass reliability message
