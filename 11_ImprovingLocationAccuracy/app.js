@@ -1494,12 +1494,18 @@ function prepareOrientationSetup() {
     // (1) --- Orientation setup ---
     if ("ondeviceorientationabsolute" in window) {
       isAbsoluteOrientation = true;
-      window.addEventListener("deviceorientationabsolute", updateOrientation, true);
-      updateOrientationIndicator();
+      window.addEventListener("deviceorientationabsolute", (event) => {
+        window.lastOrientationEvent = event; // Store the latest event
+        updateOrientation(event);
+        updateOrientationIndicator();
+      }, true);
     } else {
       isAbsoluteOrientation = false;
-      window.addEventListener("deviceorientation", updateOrientation, true);
-      updateOrientationIndicator();
+        window.addEventListener("deviceorientation", (event) => {
+        window.lastOrientationEvent = event; // Store the latest event
+        updateOrientation(event);
+        updateOrientationIndicator();
+      }, true);
     }
 
     // (2) Add event listener for Buttons -> Pre-requisite for other buttons
@@ -1595,9 +1601,9 @@ function showCalibrationModal() {
 }
 
 // To capture the latest orientation event for reliability checking:
-window.addEventListener("deviceorientation", function(event) {
-  window.lastOrientationEvent = event;
-}, true);
+// window.addEventListener("deviceorientation", function(event) {
+//   window.lastOrientationEvent = event;
+// }, true);
 
 function injectARScene() {
   // Check if the AR Scene is already present in html 
