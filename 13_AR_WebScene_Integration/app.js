@@ -15,6 +15,8 @@ let pointHighlighter = null;
 const infoText = document.getElementById("info-text");
 const debugOverlay = document.getElementById("debug-overlay");
 
+let isLegendExpanded = false; // Track whether the legend is expanded
+
 const compassButton = document.getElementById('compassButton');
 const toggleViewButton = document.getElementById('toggleView'); // Get the toggleView button
 
@@ -1084,8 +1086,8 @@ function initSceneView() {
               labelImage: getLabelImageForState(graphic.attributes.STATE) // Add if you have an image URL
             });
 
-            // After showing the popup Dispatch event 
             // to Notify AR Scene everytime a POI is selected in Webscene
+            // Emit a custom event for AR/WebScene sync
             const poiId = graphic.attributes.OBJECTID;
             document.dispatchEvent(new CustomEvent('web-poi-selected', { detail: { id: poiId } }));
           }
@@ -1103,28 +1105,7 @@ function showPopupOnWebscene({ title, distance, content, labelImage }) {
   if (!popup) {
     popup = document.createElement('div');
     popup.id = 'popup-container';
-
-    // Apply the styles dynamically (copied from openPopup)
-    popup.style.position = 'fixed';
-    popup.style.top = 'auto';
-    popup.style.bottom = '0';
-    popup.style.left = '0';
-    popup.style.right = '0';
-    popup.style.borderRadius = '20px 20px 0px 0px';
-    popup.style.borderTop = '1px solid var(--Grey-2, #F4F4F4)';
-    popup.style.borderRight = '1px solid var(--Grey-2, #F4F4F4)';
-    popup.style.borderLeft = '1px solid var(--Grey-2, #F4F4F4)';
-    popup.style.background = 'rgba(255, 255, 255, 0.90)';
-    popup.style.boxShadow = '0px -4px 20px 0px rgba(0, 0, 0, 0.10)';
-    popup.style.padding = '16px';
-    popup.style.alignItems = 'flex-start';
-    popup.style.gap = '16px';
-    popup.style.zIndex = '1000';
-    popup.style.maxHeight = '50%';
-    popup.style.overflowY = 'auto';
-    popup.style.fontFamily = '"SF Pro Display", Arial, sans-serif';
-    popup.style.boxSizing = 'border-box';
-
+    // Style is defined in css inside html
     document.body.appendChild(popup);
   }
 
@@ -1154,6 +1135,7 @@ function showPopupOnWebscene({ title, distance, content, labelImage }) {
       pointHighlighter = null;
     }
     // Dispatch event to notify AR scene that popup is closed
+    // Emit a custom event for AR/WebScene sync
      document.dispatchEvent(new CustomEvent('web-popup-closed'));
   });
 
@@ -1505,7 +1487,8 @@ function updateCompassButtonState() {
   }
   // Button State
   const updateCompassButton = (isVisible, isActive, text, opacity, backgroundColor) => {
-    compassButton.style.display = isVisible ? 'block' : 'none';
+    // Only show if legend is not expanded
+    compassButton.style.display = (isVisible && !isLegendExpanded) ? 'block' : 'none';
     compassButton.classList.toggle('active', isActive);
     compassButton.textContent = text;
     compassButton.style.opacity = opacity;
@@ -1996,6 +1979,31 @@ document.getElementById('compassButton').addEventListener('click', () => {
     console.log("Compass deactivated. Reset to default heading:", defaultHeading);
   }
 });
+
+// legend-expand -> button visibility 
+// To get away with problems of Buttons going on top of Expanded Window
+document.addEventListener('DOMContentLoaded', () => {
+  const expand = document.getElementById('legend-expand');
+  const compassButton = document.getElementById('compassButton');
+  const toggleView = document.getElementById('toggleView');
+
+  if (expand) {
+    const observer = new MutationObserver(() => {
+      isLegendExpanded = expand.hasAttribute('expanded');
+      if (isLegendExpanded) {
+        if (compassButton) compassButton.style.display = 'none';
+        if (toggleView) toggleView.style.display = 'none';
+      } else {
+        // Only show compassButton if it should be visible per app logic
+        updateCompassButtonState();
+        if (toggleView) toggleView.style.display = '';
+      }
+    });
+
+    observer.observe(expand, { attributes: true, attributeFilter: ['expanded'] });
+  }
+});
+
 
 // Start GPS updates 
 updateGPS();

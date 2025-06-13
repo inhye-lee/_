@@ -366,11 +366,29 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
 
+    .esri-expand__panel-content, 
+    .esri-legend,
+      .arcgis-legend,
+      .arcgis-expand {
+        z-index: 30 !important;
+    }
+
+    calcite-button {
+      /* z-index: 10; */
+      /* position: absolute; */
+      /* set bottom/left/right as needed */
+    }
+
+    #toggleView, #compassButton {
+      z-index: 10;
+       /* Lower than ArcGIS widgets and legend */
+    }
+
     #toggleView {
       position: absolute;
       bottom: 30px;
       right: 15px;
-      z-index: 10;
+      /* z-index: 10; */
       display: block; /* Hide by default */;
     }
     
@@ -380,8 +398,9 @@
       position: absolute;
       bottom: 30px;
       left: 15px;
-      z-index: 1000;
-      background-color: #979898; /* Grey background */
+      /* z-index: 1000; */
+      /* background-color: #979898;  */
+      /* Grey background */
       color: white; /* White text */
       border: none;
       border-radius: 5px;
@@ -410,13 +429,24 @@
     }
   }
 
-
-
    /*pop up*/
-  #popup-container {
-
-  }
-
+#popup-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 20px 20px 0 0;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0px -4px 20px 0px rgba(0,0,0,0.10);
+  padding: 16px;
+  z-index: 1000;
+  max-height: 50%;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(.4,0,.2,1);
+}
+#popup-container.collapsed {
+  max-height: 80px;
+}
   /* Adjust for mobile devices */
   @media (max-width: 768px) {
     #popup-container {
@@ -553,22 +583,26 @@
     <div id="viewDiv">
       
       <arcgis-scene id="scene">
+          <button id="compassButton">Compass Off</button> 
+          <!-- Toggle Views Among Three Set Locations -->
+          <calcite-button id="toggleView">Change Views</calcite-button>
+
           <arcgis-zoom position="top-left"> </arcgis-zoom>
           <!-- <arcgis-navigation-toggle position="top-left" id="navigation-toggle"> </arcgis-navigation-toggle> -->
           <!-- <arcgis-compass position="top-left"> </arcgis-compass> -->
-          <button id="compassButton">Compass Off</button>
+          
           <arcgis-track position="top-left" id ="track"></arcgis-track>
           <arcgis-expand position="top-right" id="legend-expand">
             <arcgis-legend id="legend">
             </arcgis-legend>
           </arcgis-expand>
           <arcgis-search position="top-right" id="search"></arcgis-search>
+          
       </arcgis-scene>
     </div>
   </div>
 
-  <!-- Toggle Views Among Three Set Locations -->
-  <calcite-button id="toggleView">Change Views</calcite-button>
+  
 </body>
 <!-- App.js gets called after DOM -->
 <script src="app.js" type="module"></script>
