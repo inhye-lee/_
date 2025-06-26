@@ -1,0 +1,184 @@
+{
+    "locations": [
+      {
+        "name": "Iolani School",
+        "latitude": 21.3009,
+        "longitude": -157.8478,
+        "color": "blue"
+      },
+      {
+        "name": "Diamond Head",
+        "latitude": 21.2622,
+        "longitude": -157.8058,
+        "color": "blue"
+      },
+      {
+        "name": "Hawaii Convention Center",
+        "latitude": 21.289373,
+        "longitude": -157.838379,
+        "color": "blue"
+      },
+      {
+        "name": "International Market Place",
+        "latitude": 21.2795,
+        "longitude": -157.8274,
+        "color": "blue"
+      },
+      {
+        "name": "Ala Moana Center",
+        "latitude": 21.291,
+        "longitude": -157.8431,
+        "color": "blue"
+      },
+      {
+        "name": "Honolulu Zoo",
+        "latitude": 21.2711,
+        "longitude": -157.8217,
+        "color": "blue"
+      },
+      {
+        "name": "Waikiki Beach",
+        "latitude": 21.2766,
+        "longitude": -157.8275,
+        "color": "blue"
+      },
+      {
+        "name": "Bishop Museum",
+        "latitude": 21.333,
+        "longitude": -157.8694,
+        "color": "blue"
+      },
+      {
+        "name": "Hanauma Bay",
+        "latitude": 21.269,
+        "longitude": -157.6938,
+        "color": "blue"
+      },
+      {
+        "name": "Punchbowl Crater",
+        "latitude": 21.3138,
+        "longitude": -157.8458,
+        "color": "blue"
+      },
+      {
+        "name": "University of Hawaii at Manoa",
+        "latitude": 21.2972,
+        "longitude": -157.817,
+        "color": "blue"
+      },
+      {
+        "name": "Magic Island",
+        "latitude": 21.285,
+        "longitude": -157.846,
+        "color": "blue"
+      },
+      {
+        "name": "Kapiolani Park",
+        "latitude": 21.2636,
+        "longitude": -157.8217,
+        "color": "blue"
+      },
+      {
+        "name": "Honolulu Museum of Art",
+        "latitude": 21.3069,
+        "longitude": -157.8489,
+        "color": "blue"
+      },
+      {
+        "name": "Aloha Tower",
+        "latitude": 21.3069,
+        "longitude": -157.8653,
+        "color": "blue"
+      },
+      {
+        "name": "Pearl Harbor",
+        "latitude": 21.3649,
+        "longitude": -157.9496,
+        "color": "blue"
+      },
+      {
+        "name": "Manoa Falls",
+        "latitude": 21.3356,
+        "longitude": -157.7989,
+        "color": "blue"
+      },
+      {
+        "name": "Koko Head",
+        "latitude": 21.2714,
+        "longitude": -157.7021,
+        "color": "blue"
+      },
+      {
+        "name": "Makapuu Lighthouse",
+        "latitude": 21.3089,
+        "longitude": -157.6543,
+        "color": "blue"
+      },
+      {
+        "name": "Waikiki Aquarium",
+        "latitude": 21.2634,
+        "longitude": -157.8216,
+        "color": "blue"
+      },
+      {
+        "name": "Royal Hawaiian Center",
+        "latitude": 21.281,
+        "longitude": -157.83,
+        "color": "blue"
+      },
+      {
+        "name": "Chinatown",
+        "latitude": 21.3106,
+        "longitude": -157.86,
+        "color": "blue"
+      },
+      {
+        "name": "Hawaii State Capitol",
+        "latitude": 21.3075,
+        "longitude": -157.8574,
+        "color": "blue"
+      },
+      {
+        "name": "Kahala Mall",
+        "latitude": 21.277,
+        "longitude": -157.788,
+        "color": "blue"
+      },
+      {
+        "name": "Lanikai Beach",
+        "latitude": 21.3937,
+        "longitude": -157.716,
+        "color": "blue"
+      },
+      {
+        "name": "Kailua Beach",
+        "latitude": 21.3972,
+        "longitude": -157.7394,
+        "color": "blue"
+      },
+      {
+        "name": "Hanauma Bay Nature Preserve",
+        "latitude": 21.269,
+        "longitude": -157.6938,
+        "color": "blue"
+      },
+      {
+        "name": "Kualoa Ranch",
+        "latitude": 21.5214,
+        "longitude": -157.8374,
+        "color": "blue"
+      },
+      {
+        "name": "Waimea Bay",
+        "latitude": 21.64,
+        "longitude": -158.063,
+        "color": "blue"
+      },
+      {
+        "name": "North Shore",
+        "latitude": 21.64,
+        "longitude": -158.063,
+        "color": "blue"
+      }
+    ]
+  }
