@@ -19,7 +19,9 @@ let isLegendExpanded = false; // Track whether the legend is expanded
 
 const compassButton = document.getElementById('compassButton');
 const toggleViewButton = document.getElementById('toggleView'); // Get the toggleView button
-const trackButton = document.getElementById("track");
+let trackButton = document.querySelector("arcgis-track");
+// trackButton.visible = false; ; // Hide
+// trackButton.rotationDisabled = false;
 
 let stateSelect; // DOM to be created 
 let isUSStateAssigned = false; // Check if the default US state has been assigned
@@ -1397,7 +1399,7 @@ function updateOrientation(event) {
  *
  * @param {Object|null} _target - The target object with { latitude, longitude } to focus on. If null and tracking is active, uses user location.
  * @param {boolean} _animate - Whether to animate the camera move (default: true).
- * @param {text} _headingInstruction- Receive "smoothedHeading"- use the smoothed heading or "customHeading" calculate a custom heading based on user and POI location (default: " ").
+ * @param {text} _headingInstruction- "smoothedHeading"(Compass) "customHeading" - custom heading based on user and POI location, or "north" = 0.
  * @param {number} _offsetHeight - Horizontal distance behind the user in meters (default: 1000).
  * @param {number} _offsetBehind - Height above the user in meters (default: 300).
  * @param {boolean} _isTrackActive - If true and _target is null, use current user location as target (default: false).
@@ -1698,6 +1700,14 @@ function updateCompassButtonState() {
     compassButton.style.opacity = opacity;
     compassButton.style.backgroundColor = backgroundColor;
   };
+
+  // **** FALL BACK FOR SETTING THE COMPASS BUTTON STATE (As this is called continuously))
+  // Otherwise, a bug when track button pressed when compass is ON. 
+  // Track gets deactivated, but SmoothedHeading is still used
+  if (compassButton.style.display === "none" && !trackButton.tracking) {
+    compassOn_NoPOI = false;
+    compassOn_POI = false; // Reset compass state
+  }
 
   // Check if the initial location is acquired after the app begins
   if (isInitialLocationAcquired) { 
@@ -2146,10 +2156,11 @@ function updatePOICounter(poiCount) {
 
 // ** Custom Track Button Toggle
 trackButton.addEventListener('click', () => {
-
+  // trackButton.tracking = !trackButton.tracking; // Toggle the tracking state
+  console.log("trackButton.tracking:", trackButton.tracking);
   // REINFORCES the compass-POI state 
-  compassOn_NoPOI = false;
-  compassOn_POI = false;
+  // compassOn_NoPOI = false;
+  // compassOn_POI = false;
   //  _target = null, 
   // _animate = true, 
   // _useDynamicHeading = false, 
@@ -2172,7 +2183,7 @@ trackButton.addEventListener('click', () => {
   }
 
   // (2) POI is selected, tracking TURNS OFF
-  if (selectedPOI && trackButton.tracking ===false) {
+  if (selectedPOI && trackButton.tracking === false) {
     focusCamera(
       selectedPOI, 
       true, "customHeading", 1000, 300, false, isCompassActive, true
@@ -2198,6 +2209,7 @@ trackButton.addEventListener('click', () => {
     );
     return;
   }
+
 })
 
 //** */ Custom Compass Button Toggle
@@ -2211,6 +2223,7 @@ document.getElementById('compassButton').addEventListener('click', () => {
     compassButton.style.opacity = '1';
     compassButton.textContent = 'Compass On'; // Update button text
     toggleViewButton.style.display = 'none'; // Hide the toggleView button (View tilt controlled by motion)
+    trackButton.style.display = 'none'; // HIDE the track button when compass is ON
     console.log("Compass activated. WebScene will follow device heading.");
 
   } else { // Compass gets turned OFF (Track is on) && 
@@ -2219,7 +2232,7 @@ document.getElementById('compassButton').addEventListener('click', () => {
     compassButton.style.opacity = '0.75';
     compassButton.textContent = 'Compass Off'; // Update button text
     toggleViewButton.style.display = 'block'; // Show the toggleView button
-
+    trackButton.style.display = 'block'; // HIDE the track button when compass is ON
     console.log("Compass deactivated. Reset to default heading:", defaultHeading);
   }
 
@@ -2303,8 +2316,6 @@ document.addEventListener('DOMContentLoaded', () => {
     observer.observe(expand, { attributes: true, attributeFilter: ['expanded'] });
   }
 });
-
-
 
 // Start GPS updates 
 updateGPS();
