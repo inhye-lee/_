@@ -518,40 +518,6 @@ function loadPOIData() {
                 });
               }
 
-              //***** (Not Working) */ Restore the previously selected POI, if it exists;
-              // if (selectedPOI && selectedPOI.objectid) {
-              //   const poiEntity = document.querySelector(`[poiId="${selectedPOI.objectid}"]`);
-              //   if (poiEntity && poiEntity.components && poiEntity.components['toggle-title']) {
-              //     poiEntity.components['toggle-title'].pinTitle();
-              //   }
-              // }
-              if (selectedPOI) {
-                // Find the AR entity for the POI using latitude and longitude
-                const poiEntity = Array.from(document.querySelectorAll('[poiId]')).find(el => {
-                  const poiId = el.getAttribute('poiId');
-                  // If your poiId is OBJECTID, you need to match with selectedPOI.objectid
-                  // If your poiId is lat/lon, match with selectedPOI.latitude/longitude
-                  // Adjust this logic as needed for your actual attribute
-                  return (
-                    el.components &&
-                    el.components['toggle-title'] &&
-                    (
-                      (selectedPOI.objectid && poiId == selectedPOI.objectid) ||
-                      (
-                        el.hasAttribute('latitude') &&
-                        el.hasAttribute('longitude') &&
-                        Number(el.getAttribute('latitude')) === selectedPOI.latitude &&
-                        Number(el.getAttribute('longitude')) === selectedPOI.longitude
-                      )
-                    )
-                  );
-                });
-
-                if (poiEntity && poiEntity.components && poiEntity.components['toggle-title']) {
-                  poiEntity.components['toggle-title'].pinTitle();
-                }
-              }
-
               break;
             }
           }
