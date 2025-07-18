@@ -565,10 +565,10 @@ function loadPOIData() {
   });
 }
 //******* */ Debuggin UpdateDisplay refreshing-->
-document.getElementById('debug-refresh-ar').addEventListener('click', () => {
-  updateDisplay();
-  console.log('AR display manually refreshed.');
-});
+// document.getElementById('debug-refresh-ar').addEventListener('click', () => {
+//   updateDisplay();
+//   console.log('AR display manually refreshed.');
+// });
 
 function updateDisplay() { // This is where AR Screen gets refreshed
 
