@@ -299,7 +299,6 @@ AFRAME.registerComponent('raycaster-handler', {
             opacity: 1 // Full opacity for the pinned style
           });
         }
-
       }
 
       // Update the connecting line
@@ -430,31 +429,6 @@ AFRAME.registerComponent('raycaster-handler', {
       }
     }
 
-  });
-
-  // * Shader for Blur Effect (Does Not work YET)
-  AFRAME.registerShader('blur-shader', {
-    schema: {
-      color: { type: 'color', default: 'white' },
-      opacity: { type: 'number', default: 0.8 }
-    },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      varying vec2 vUv;
-      uniform vec3 color;
-      uniform float opacity;
-      void main() {
-        float blur = smoothstep(0.3, 0.8, length(vUv - 0.5));
-        gl_FragColor = vec4(color, opacity * blur);
-      }
-    `,
-    transparent: true
   });
 
   AFRAME.registerComponent('text-background', {
@@ -592,18 +566,18 @@ AFRAME.registerComponent('raycaster-handler', {
     //   // Show the pop-up
     //   popup.style.display = 'block';
     // },
-openPopup: function () {
-  showPopup({
-    title: this.data.title,
-    distance: this.data.distance,
-    content: this.data.content,
-    labelImage: this.data.labelImage,
-    onClose: () => {
-      this.closePopup();
+    openPopup: function () {
+      showPopup({
+        title: this.data.title,
+        distance: this.data.distance,
+        content: this.data.content,
+        labelImage: this.data.labelImage,
+        onClose: () => {
+          this.closePopup();
+        },
+        containerId: 'popup-container'
+      });
     },
-    containerId: 'popup-container'
-  });
-},
 
     closePopup: function () {
       const popup = document.querySelector('#popup-container');
@@ -641,16 +615,15 @@ document.addEventListener('ar-poi-selected', function(e) {
   }
 });
 
-
-document.addEventListener('poi-selected-before-reload', function(e) {
-  const selectedPOI = e.detail.poi;
-  if (selectedPOI && selectedPOI.objectid) {
-    const selectedEl = document.querySelector(`[poiId="${selectedPOI.objectid}"]`);
-    if (selectedEl && selectedEl.components['toggle-title']) {
-      selectedEl.components['toggle-title'].pinTitle();
-    }
-  }
-});
+// document.addEventListener('poi-selected-before-reload', function(e) {
+//   const selectedPOI = e.detail.poi;
+//   if (selectedPOI && selectedPOI.objectid) {
+//     const selectedEl = document.querySelector(`[poiId="${selectedPOI.objectid}"]`);
+//     if (selectedEl && selectedEl.components['toggle-title']) {
+//       selectedEl.components['toggle-title'].pinTitle();
+//     }
+//   }
+// });
 
 // Optionally, Add listeners for popup closed events to unpin all titles:
 document.addEventListener('ar-popup-closed', unpinAllTitles);

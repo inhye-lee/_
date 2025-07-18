@@ -1,35 +1,6 @@
  // Keep track of the expanded state of the open pop up
 window.GLOBAL_POPUP_COLLAPSED = false;
 
-// Original code for collapsed
-        // <div class="title" style="display:flex; align-items:center; gap:8px; padding:12px; min-height:40px; max-height:40px; height:40px; margin-bottom: -8px; overflow:hidden;">
-        //   <img width="32" height="32" src="${labelImage || ""}">
-        //   <h2 style="margin:0; font-size:16px; font-weight:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto;"><b>${title || ""}</b></h2>
-        //   <span style="flex:1"></span>
-        //   <button id="popup-expand" style="margin-left:8px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-        //     <img src="./assets/ui/CollapseButton.svg" alt="Expand" style="width:30px; height:30px; transform:rotate(180deg); transition: transform 0.3s;">
-        //   </button>
-        //   <button id="popup-close" style="margin-left:8px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-        //     <img src="./assets/ui/CloseButton_sm.svg" alt="Close" style="width:30px; height:30px;">
-        //   </button>
-        // </div>
-
-        // On the side
-        // <div style="display: flex; justify-content: flex-end; align-items: center; gap: 4px; padding: 8px 8px 0 8px;">
-        
-        //   <button id="popup-expand" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-        //     <img src="./assets/ui/CollapseButton.svg" alt="Expand" style="width:28px; height:28px; transform:rotate(180deg); transition: transform 0.3s;">
-        //   </button>
-        //   <button id="popup-close" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-        //     <img src="./assets/ui/CloseButton_sm.svg" alt="Close" style="width:28px; height:28px;">
-        //   </button>
-        // </div>
-        // <div style="padding: 8px 12px 0 12px; text-align: left; width: 100%;">
-        //   <h2 style="margin:0; font-size:16px; font-weight:normal; white-space:normal; overflow-wrap:break-word; word-break:break-word;">
-        //     <img width="32" height="32" src="${labelImage || ""}">${title || ""}
-        //   </h2>
-        // </div>
-
 export function showPopup({
   title,
   distance,

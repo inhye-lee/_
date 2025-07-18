@@ -79,7 +79,6 @@ let compassOn_NoPOI = false; // Track if compass is on when no POI is selected
 let compassOn_POI = false; // Track if compass is on when a POI is selected
 let POIselectedFromMap = false; // Track if POI is selected from POI
 let lastSelectedPOIId = null; // Track the last selected POI ID in case POI in AR gets refreshed
-let lastWebSceneHeading = 0; // Track the last heading from the camera 
 
 // (1) Haversine formula: Calculate distance between two coordinates 
 // function calculateDistance(userLat, userLon, poiLat, poiLon) {
@@ -520,6 +519,36 @@ function loadPOIData() {
                 });
               }
 
+              //******** Pin the title if there is a selectedPOI in AR Scene
+              if (selectedPOI && selectedPOI.id) {
+                // Find the AR POI entity by poiId attribute
+                console.log(`Existing selected POI ID: ${selectedPOI.id}`);
+                // Asychronously pin the title when it's ready
+                const arPoi = document.querySelector(`[poiId="${selectedPOI.id}"]`);
+                if (arPoi) {
+                  if (arPoi.hasLoaded) {
+                    if (arPoi.components && arPoi.components['toggle-title']) {
+                      arPoi.components['toggle-title'].pinTitle();
+                    }
+                  } else {
+                    arPoi.addEventListener('loaded', () => {
+                      if (arPoi.components && arPoi.components['toggle-title']) {
+                        arPoi.components['toggle-title'].pinTitle();
+                      }
+                    }, { once: true });
+                  }
+                // const arPoi = document.querySelector(`[poiId="${selectedPOI.id}"]`);
+                // if (arPoi && arPoi.components && arPoi.components['toggle-title']) {
+                //   console.log("SAME AR POI exist in AR SCENE");
+                //   // Asychronously pin the title when it's ready
+                //   // Use setTimeout to defer pinTitle
+                //   setTimeout(() => {
+                //     arPoi.components['toggle-title'].pinTitle();
+                //   }, 50); // 50ms delay to ensure component is ready
+                } else {
+                  console.log("SAME AR POI NOT exist in AR SCENE");
+                }
+              }
               break;
             }
           }
@@ -535,6 +564,11 @@ function loadPOIData() {
       });
   });
 }
+//******* */ Debuggin UpdateDisplay refreshing-->
+document.getElementById('debug-refresh-ar').addEventListener('click', () => {
+  updateDisplay();
+  console.log('AR display manually refreshed.');
+});
 
 function updateDisplay() { // This is where AR Screen gets refreshed
 
@@ -674,43 +708,6 @@ function updateGPS() {
         });
 
         gpsReady = true;  // Set GPS ready to true
-
-        // --- Add or update user location marker on the webscene ---
-        // if (webscene && webscene.view) {
-        //   require(["esri/Graphic"], function(Graphic) {
-        //     if (!userLocationGraphic) {
-        //       // Create once
-        //       userLocationGraphic = new Graphic({
-        //         geometry: {
-        //           type: "point",
-        //           latitude: filteredLat,
-        //           longitude: filteredLon
-        //         },
-        //         symbol: {
-        //           type: "simple-marker",
-        //           style: "circle",
-        //           color: "#40C2B4",
-        //           size: "16px",
-        //           outline: {
-        //             color: "#fff",
-        //             width: 2
-        //           }
-        //         },
-        //         elevationInfo: {
-        //           mode: "on-the-ground"
-        //         }
-        //       });
-        //       webscene.view.graphics.add(userLocationGraphic);
-        //     } else {
-        //       // Just update geometry
-        //       userLocationGraphic.geometry = {
-        //         type: "point",
-        //         latitude: filteredLat,
-        //         longitude: filteredLon
-        //       };
-        //     }
-        //   });
-        // }
 
         // Call updateDisplay based on useFilteredData boolean
         // Only call updateDisplay if useFilteredData is true & After Initial Calibration
@@ -1002,14 +999,6 @@ function initSceneView() {
         }
       ];
 
-      //************ Track Webscene's Camera Heading after webscene.view is ready:
-      webscene.view.watch('camera', (camera) => {
-        if (!isCompassActive) {
-          lastWebSceneHeading = camera.heading;
-          console.log("WebScene Camera Heading:", lastWebSceneHeading); 
-        }
-      });
-
       //******* CUSTOM TRACK BUTTON BEHAVIOR ********//
        trackButton.addEventListener('click', () => {
         if (!webscene || !webscene.view) return;
@@ -1208,7 +1197,7 @@ function initSceneView() {
                 : `${Math.round(distMeters)} m`;
             }
 
-            showPopup({ // imported from external js
+            showPopup({ // imported from external js (popupWindow.js)
               title: graphic.attributes.NAME,
               distance: distance,
               content: `<b>Address:</b> ${graphic.attributes.STREET}, ${graphic.attributes.CITY}, ${graphic.attributes.STATE}, ${graphic.attributes.ZIP}<br>
@@ -1451,11 +1440,9 @@ function updateOrientation(event) {
     ? "Android"
     : "Other";
  
-    // Apply platform-specific logic only when the compass is active 
-    // * Fix - a single logic not working for all compasses 
     // Receive event here when COMPASS button is clicked for SmoothedHeading
 
-    if (compassOn_NoPOI === true) {
+    if (compassOn_NoPOI === true || compassOn_POI === true) {
       const camera = webscene.view.camera;
       const tilt = camera.tilt;
       const heading = camera.heading;
@@ -1471,7 +1458,7 @@ function updateOrientation(event) {
         screenPoint: { x: screenX, y: screenY }
       };
       if (tilt > 1) { // Offset the camera behind the POI for oblique view
-       // This Works! (But Camera Centered)
+       // This Works! (But Camera is Centered)
         focusCamera(
           { latitude: useFilteredData ? filteredLat : lat, longitude: useFilteredData ? filteredLon : lon }, 
           true,  // animate
@@ -1492,48 +1479,6 @@ function updateOrientation(event) {
       }
     } 
 
-    if (compassOn_POI === true) {
-      const camera = webscene.view.camera;
-      const tilt = camera.tilt;
-      const heading = camera.heading;
-      const altitude = camera.position.z;
-      let myOffsetBehind = altitude * Math.tan(tilt * Math.PI / 180);
-
-      const targetLat = useFilteredData ? filteredLat : lat;
-      const targetLon = useFilteredData ? filteredLon : lon;
-      // Calculate screenPoint: horizontally centered, 85% down from the top
-      const screenX = webscene.view.width / 2;
-      const screenY = webscene.view.height * 0.9;
-
-      // Pass screenPoint in goToOptions
-      let goToOptions = {
-        animate: true,
-        screenPoint: { x: screenX, y: screenY }
-      };
-
-      if (tilt > 1) { // Offset the camera behind the POI for oblique view
-        // Viewed FROM FAR AWAY 
-        focusCamera(
-          { latitude: targetLat, longitude: targetLon }, 
-          true, // animate
-          "smoothedHeading", altitude, myOffsetBehind, 
-          // "smoothedHeading", 500, 5000, // Offset Behind based on altitude and tilt
-          true, // track active
-          isCompassActive, // Use compass state
-          false)  // Use midpoint to show both user and POI)
-        } else { // Top-down view: center on POI
-          webscene.view.goTo({
-            position: {
-              latitude: useFilteredData ? filteredLat : lat,
-              longitude: useFilteredData ? filteredLon : lon,
-              z: altitude
-            },
-            tilt: tilt,
-            heading: smoothedHeading 
-          }, goToOptions);
-        }
-      }
-
     // Check if the heading change exceeds the threshold
     const headingSignificantChange =
     previousHeading === null || Math.abs(smoothedHeading - previousHeading) > headingChangeThreshold;    
@@ -1550,13 +1495,13 @@ function updateOrientation(event) {
       (tiltingSignificantChange) ||
       (rollingSignificantChange)) {
       heading = smoothedHeading;
-      console.log(
-        `Significant change detected. 
-        GPS Change: ${gpsSignificantChange}, 
-        Heading Change: ${headingSignificantChange},
-        Tilting Change: ${tiltingSignificantChange},
-        Rolling Change: ${rollingSignificantChange}`
-      );
+      // console.log(
+      //   `Significant change detected. 
+      //   GPS Change: ${gpsSignificantChange}, 
+      //   Heading Change: ${headingSignificantChange},
+      //   Tilting Change: ${tiltingSignificantChange},
+      //   Rolling Change: ${rollingSignificantChange}`
+      // );
      
       // Update previous values
       previousHeading = smoothedHeading;
@@ -1656,8 +1601,6 @@ function focusCamera(
       heading = (toDeg(Math.atan2(y, x)) + 360) % 360;
   } else if (_headingInstruction = "north"){ // (3) Use north-up heading (0 degrees)
     heading = 0; // North-up
-  } else if (_headingInstruction === "recentHeading") {
-    heading = lastWebSceneHeading; // Whatever heading that was recorded Last;
   } else if (_headingInstruction === "curHeading") {
     heading = webscene.view.camera.heading; // Use the current heading from the compass 
   } 
@@ -1783,8 +1726,11 @@ function targetCameraOnSelectedPOI(e) {
         const feature = result.features[0];
         selectedPOI = {
           latitude: feature.geometry.latitude,
-          longitude: feature.geometry.longitude
+          longitude: feature.geometry.longitude,
+          name: feature.attributes.NAME,         // Add the POI name
+          id: feature.attributes.OBJECTID  
         };
+        
         const camera = webscene.view.camera;
         const tilt = camera.tilt;
         const heading = camera.heading;
@@ -1793,6 +1739,7 @@ function targetCameraOnSelectedPOI(e) {
       
       // ******* // Focus camera on the selected POI - WHEN USER SELECTS A POI 
       if (!isTracking && selectedPOI) { // !trackButton.tracking && selectedPOI
+        console.log("Selected POI:", selectedPOI);
           // (1) Track is OFF: focus directly on POI, no midpoint, no dynamic heading
           if (tilt > 1) { // Offset the camera behind the POI for oblique view
             focusCamera(
@@ -1812,6 +1759,7 @@ function targetCameraOnSelectedPOI(e) {
             });
           }
         } else if (isTracking && !isCompassActive && selectedPOI) { // trackButton.tracking && !isCompassActive && selectedPOI
+          console.log("Selected POI:", selectedPOI);
           // (2) When Track is ON, REINFORCE Compass is OFF: 
           // Track will turn off If Map is triggered on Map
             if (tilt > 1) { // Offset the camera behind the POI for oblique view
@@ -1837,6 +1785,7 @@ function targetCameraOnSelectedPOI(e) {
           compassOn_NoPOI = false;
           compassOn_POI = false; // Reset compass state
         } else if (isTracking && isCompassActive && selectedPOI) {
+          console.log("Selected POI:", selectedPOI);
           // While the compass is Active, user selects a POI
           // (1) STOP COMPASS
           isCompassActive = false; // Reset compass state
