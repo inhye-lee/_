@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- For Scaling Properly in Mobile Device-->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title> AR </title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+  <!-- <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script> -->
+   
+  <!-- New ar js script: changing gps-entity-place to gps-new-entity-place -->
+  <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/three.js/build/ar-threex-location-only.js'></script>
+  <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js'></script>
+
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <!-- GeoDesic Calculation -->
+  <script src="https://cdn.jsdelivr.net/npm/geographiclib@1.52.2/geographiclib.min.js"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.32/"></script>
+
+  <!-- Lottie Animation -->
+  <script src="https://cdn.lottielab.com/s/lottie-player@1.x/player-web.min.js"></script>
+  <!-- Load Map components from CDN-->
+  <script type="module" src="https://js.arcgis.com/map-components/4.32/arcgis-map-components.esm.js"></script>
+  
+  <style>
+    @font-face {
+      font-family: "SF Pro Display";
+      src: url('./assets/font/sf-pro-display/SFPRODISPLAYREGULAR.OTF') format('opentype');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: "Roboto";
+      src: url('./assets/font/Roboto/Roboto-VariableFont_wdth,wght.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      padding: 10px;
+    }
+
+    #control-container {
+      display: flex;
+      flex-direction: column; /* Ensure children are in a row */
+      align-items: center;
+      /* gap: 16px; */
+      z-index: 1000;
+      font-size: 0.9em;
+      width: calc(100% - 20px);
+      position: absolute;
+      top: 10px; /* top  */
+      left: 10px;
+      right: 10px;
+    }
+
+    #control-container > * { /*child elements*/
+      width: 100%;
+      box-sizing: border-box; /* Prevents overflow from padding */
+      margin-bottom: 8px;     /* Optional: space between rows */
+    }
+
+    #toggleGPSButton {
+      background-color: #9500ff;
+      width: 100px;
+    }
+
+    button {
+      flex-shrink: 0;
+      color: white; /* White text */
+      border: none; /* Remove border */
+      border-radius: 5px; /* Rounded corners */
+      padding: 10px 5px; /* Padding for a better click area */
+      cursor: pointer; /* Pointer cursor on hover */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+      transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth hover effect */
+    }
+
+    button:hover {
+      background-color: #0056b3; /* Darker blue on hover */
+      /* transform: translateY(-2px); Slight lift on hover */
+    }
+
+    button:active {
+      background-color: #004085; /* Even darker blue on click */
+      /* transform: translateY(0); Reset lift on click */
+  }
+
+    /* Or, target just the toggle button */
+    #toggle-heading-adjust {
+      background-color: #007bff;
+      color: white;
+    }
+
+    #slider-container {
+      display: flex;
+      align-items: center;
+      /* margin-left: 10px; */
+      background: rgba(255, 255, 255, 0.8);
+      padding: 5px;
+      border-radius: 8px;
+      flex-grow: 1;
+    }
+
+    #distanceSlider {
+      width: 100%;
+      /* margin-right: 10px; */
+    }
+
+    #distanceValue {
+      white-space: nowrap;
+    }
+
+    #poi-counter {
+      display: inline;
+    }
+
+    #loadingIndicator {
+      position: absolute;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%); /* Center both vertically and horizontally */
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 1002;
+      display: block;
+      animation: pulse 1.5s infinite;
+      white-space: nowrap;
+      text-align: center;
+      width: max-content;
+      max-width: 90vw;  
+    }
+
+    #calibration-modal {
+      display:none; 
+      position:fixed; 
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%); /* Center both vertically and horizontally */
+      width:100vw; 
+      height:100vh; 
+      z-index:2000; 
+      background:rgba(0, 72, 116, 0.8);  /* Dark Blue */
+      padding:16px; 
+      align-items:center; 
+      justify-content:center; 
+      margin:auto;
+    }
+
+    #calibration-modal, #calibration-modal * {
+      font-family: "Roboto", Arial, sans-serif !important;
+      color:#fff; 
+    }
+    #calibration-modal-bg {
+      /* background: #fff; */
+      /* border-radius: 16px; */
+      padding: 32px 24px;
+      text-align: center;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0; /* Remove any auto or top margin */
+    }
+    /* Center the lottie-player inside the modal */
+    #calibration-modal lottie-player {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 300px; 
+    }
+
+    .calibration-instructions {
+      text-align: left;
+      background: rgba(0,0,0,0.45);
+      padding: 16px 18px;
+      border-radius: 12px;
+      margin-top: 12px;
+      margin-bottom: 8px;
+    }
+
+    .calibrate-pulse {
+      animation: pulseCalibrate 3s infinite;
+      display: inline-block;
+    }
+
+    @keyframes pulseCalibrate {
+      0% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.08);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    #manual-heading-message {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%); /* Center both vertically and horizontally */
+      background: rgba(255,255,255,0.8);
+      color: #222;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+      z-index: 2000;
+      /* width: 100%; */
+      max-width: calc(100vw - 16px); /* 16px margin on each side */
+      min-width: 85%;
+    }
+
+    #manual-heading-message .button-text {
+      /* background:#007bff;  */
+      color:#007bff; 
+      border-radius:5px; 
+      /* padding:2px 8px;  */
+      font-weight:500; 
+      /* font-size:0.95em;  */
+      margin:0 2px;
+    }
+
+    #manual-heading-yes {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #orientation-indicator {
+      display: none;  /*Initially Hidden */
+      align-items: center;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 6px;
+      border-radius: 8px;
+    }
+
+    #toggle-heading-adjust {
+      background-color: #007bff;
+      color: white;
+      margin-left: auto;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: translateX(-50%) scale(1);
+      }
+      50% {
+        transform: translateX(-50%) scale(1.1);
+      }
+      100% {
+        transform: translateX(-50%) scale(1);
+      }
+    }
+
+    #debug-overlay {
+      position: absolute;
+      top: -200px;  /*Hidden for presentation document*/
+      left: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 5px;
+      z-index: 1000; /* Ensure it's on top */
+    }
+
+    #my-ar-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 95%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #bottom-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #resizer {
+      position: absolute;
+      top: -20px; /*To vertically center the resizer img*/
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      /* background: rgba(255, 255, 255, 0.5); */
+      border-radius: 999px;
+      cursor: ns-resize;
+      z-index: 11;
+    }
+
+    #map {
+      flex: 1;
+      width: 100%;
+      background: #fff;
+    }
+
+    #viewDiv {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #viewDiv, arcgis-scene {
+    position: relative;
+  }
+
+    #cityStyle {
+      /* background-color: white; */
+      text-align: center;
+      padding: 10px;
+      font-size: 0.9em;
+    }
+
+    #cityStyle label {
+      padding-right: 10px;
+      cursor: pointer;
+    }
+
+    #infoDiv {
+      position: absolute;
+      top: 50%;
+      left: 5%;
+      width: 200px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      /* z-index: 10; */
+    }
+
+    #locationButtons {
+      position: absolute;
+      width: auto;
+      bottom: 90px;
+      right: 1%;
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .locationButton {
+      flex:1;
+    }
+
+    #filterDiv {
+      /* position: absolute;
+      bottom: 150px; */
+      right: 1%;
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .esri-expand__panel-content, 
+    .esri-legend,
+      .arcgis-legend,
+      .arcgis-expand {
+        z-index: 30 !important;
+    }
+
+    calcite-button {
+      /* z-index: 10; */
+      /* position: absolute; */
+      /* set bottom/left/right as needed */
+    }
+    #toggleView {
+      position: absolute;
+      /* left: 18px; */
+      top: 10px;
+      z-index: 1001;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 1em;
+      cursor: pointer;
+      border: none;
+    }
+
+    #track, #compassButton {
+      font-size: 0.85em; 
+      position: absolute;
+      left: 18px;
+       z-index: 1001;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      border: none;
+      background-color: #d3d3d3;
+      font-family: "SF Pro Display", "Roboto", Arial, sans-serif !important;
+    }
+
+    #track {
+      bottom: 30px;  
+    }
+
+    #compassButton {
+      bottom: 72px; /* Place above the track button */
+    }
+
+
+  /* Keyframe animation for pulsing effect */
+  @keyframes comPulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.15);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+   /*pop up*/
+
+.popup-grab-handle {
+  width: 40px;
+  height: 4px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.90);
+  border-radius: 4px;
+  margin: 0;
+  }
+
+#popup-container {
+  position: fixed;
+  top: auto; /* Allow positioning at the bottom */
+  bottom: 0; /* Position at the bottom of the screen */
+  left: 0;
+  right: 0;
+  border-radius: 20px 20px 0px 0px;
+  border-top: 1px solid var(--Grey-2, #F4F4F4);
+  border-right: 1px solid var(--Grey-2, #F4F4F4);
+  border-left: 1px solid var(--Grey-2, #F4F4F4);
+  background: rgba(255, 255, 255, 0.90);
+  box-shadow: 0px -4px 20px 0px rgba(0, 0, 0, 0.10);
+  padding: 0 8px 8px 8px; /* No top padding, keep sides/bottom */
+  align-items: flex-start;
+  gap: 16px;
+  z-index: 1000;
+  /* max-height: 50%;  */
+  /* Limit height to half the screen */
+  overflow-y: auto; /* Enable vertical scrolling for content */
+  font-family: "SF Pro Display", Arial, sans-serif;
+  box-sizing: border-box; /* Include padding and border in width calculation */
+  transition: height 0.2s cubic-bezier(.4,0,.2,1);
+}
+#popup-container.collapsed {
+  max-height: 80px;
+  width: 70%;
+  left: 30%;
+  /* position: fixed;
+  width: 120px;           /* Square shape */
+  /* height: auto; */
+  /* right: 0px;            Distance from right edge */
+  /* left: auto; */
+  /* bottom: 15%;               1/4 down the screen */
+  /* top: auto;
+  max-height: none;
+  max-width: none; */
+  /* border-radius: 20px 0 0 20px; Rounded top-left and bottom-left */
+  /* box-shadow: 0px 2px 24px 0px rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.50);
+  z-index: 1000;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(.4,0,.2,1);
+  padding: 0 16px 16px 16px; */ 
+}
+  /* Adjust for mobile devices */
+  @media (max-width: 768px) {
+    #popup-container {
+      max-width: 100%; /* Take full width on mobile */
+      max-height: 60%; /* Increase height slightly for mobile */
+    }
+  }
+
+  /* Style for the pop-up title */
+  #popup-container.title {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex: 1 0 0;
+  }
+
+  #popup-container h2 {
+    color: #000;
+    font-size: 18px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+  }
+
+  .title2 {
+    color: #000;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  /* Style for the pop-up content */
+  #popup-container p {
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 150%; /* 24px */
+    color: var(--Grey-5, #696969);
+  }
+
+  /* Style for the close button */
+  #popup-close, #popup-collapse, #popup-expand {
+    display: block;
+    width: 30px;
+    height: 30px;
+    border: none; /* Remove border */
+    border-radius: 50%; /* Make it circular */
+    cursor: pointer; /* Pointer cursor on hover */
+    text-align: right;
+    transition: background-color 0.3s ease;
+    background: var(--fill-tertiary, rgba(118, 118, 128, 0.12));
+  }
+
+  /* Hover effect for the close button */
+  #popup-close:hover, #popup-collapse:hover, #popup-expand:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+  }
+
+  /*Tapped POI Style*/
+  .halo {
+  box-shadow: 0 0 20px 5px rgba(0, 123, 255, 0.8); /* Blue glow */
+  border-radius: 50%; /* Make it circular */
+  transition: box-shadow 0.3s ease; /* Smooth transition */
+}
+
+.popup-halo-on-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px; /* Halo thickness */
+  border-radius: 50%;
+  background-color: #00ffff; /* Halo color */
+  width: 42px;  /* 32px image + 2*5px padding */
+  height: 42px;
+  box-sizing: border-box;
+  /* opacity: 0.6;  */
+  /* Set halo opacity (0 = transparent, 1 = opaque) */
+}
+
+.popup-halo-on-symbol img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+  </style>
+</head>
+
+<body>
+
+  <script type="module" src="./popupWindow.js"></script> <!-- Pop Up Window -->
+  <script src="./websceneCameraControl.js"></script> <!-- WebScene Camera Control -->
+  <script type="module" src="./aframe-component.js"></script> <!-- Aframe Components -->
+  <div id="my-ar-container"></div>
+  <div id="debug-overlay">Fetching..</div>
+  <!-- Calibration Modal -->
+  <div id="calibration-modal">
+    <div id ="calibration-modal-bg">
+    <h2 class="calibrate-pulse">Calibrate your compass</h2> 
+
+      <div style=" align-items:center; justify-content:center;">
+        <lottie-player src="./assets/animation/CalibrationGuide.json" loop autoplay>
+        </lottie-player>
+      </div>     
+
+      <div class="calibration-instructions">1. Hold the phone flat in your hand, screen facing up.<br>
+        2. Imagine drawing a figure "8" or infinity symbol with your phone.<br>
+        3. Repeat the motion 3 to 5 times.<br> 
+      </div>
+    <button id="calibration-skip-btn" style="margin-top: -4px; background:#007bff; color:#fff; border:none; border-radius:8px; padding:8px; font-size:1.1em; cursor:pointer;">Skip</button>
+    </div>
+  </div>
+  <!-- Loading Indicator: Intially Hidden -->
+  <div id="loadingIndicator" style="display:none;">
+    Loading Points of Interest Near You...
+  </div>
+  <!-- Manual Heading Message Modal -->
+  <div id="manual-heading-message">
+    <div>
+      If the AR labels are not aligned correctly with landmarks or points of interest, use the <span class="button-text">Adjust Heading</span> slider ☝️ to manually line them up with a landmark you recognize.  
+    </div>
+    <div style="display: flex; justify-content: center;">
+      <button id="manual-heading-yes">I understand</button>
+    </div>
+  </div>
+
+  <div id="control-container">
+    <!-- <button id="toggleGPSButton">Use Raw GPS</button> -->
+    <div id="slider-container">
+      <label for="distanceSlider">Distance: </label>
+      <input type="range" id="distanceSlider" min="1000" max="10000" value="3000" step="100">
+      <span id="distanceValue">3000m</span><span>&nbsp;</span></span><span id="poi-counter"></span> 
+    </div>
+
+    <div id="orientation-indicator">
+      <span id="orientation-mode">Checking Orientation...</span>
+      <span id="compass-reliability"></span> 
+      <button id="toggle-heading-adjust" style="margin-left:auto;">Adjust</button>
+    </div>
+    
+    <!-- Manual Heading Controls (Slider) -->
+    <div id="manual-heading-controls" style="display: none;background: rgba(255,255,255,0.8); padding:5px; border-radius:8px;">
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span>Adjust By
+             <span id="manual-heading-value" style="min-width: 32px; text-align: right;">0</span>°
+        </span>
+        <input type="range" id="manual-heading-slider" min="-180" max="180" value="0" style="flex: 1 1 120px; vertical-align:middle;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug Refresh AR Button -->
+  <!-- <button id="debug-refresh-ar" style="
+  position: absolute;
+  top: 150px;
+  right: 20px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+">
+  Refresh AR
+</button> -->
+ 
+  <!-- <a-scene> will be added here after Initial Compass Calibration -->
+
+  <div id="bottom-container">
+    <div id="resizer"></div>
+    <div id="viewDiv">
+      
+      <arcgis-scene id="scene">
+          
+          <!-- Toggle Views -->
+          <calcite-button id="toggleView">Toggle Views</calcite-button>
+
+          <!-- <arcgis-zoom position="top-left"> </arcgis-zoom> -->
+          <!-- <arcgis-navigation-toggle position="top-left" id="navigation-toggle"> </arcgis-navigation-toggle> -->
+          <!-- <arcgis-compass position="top-left"> </arcgis-compass> -->
+          
+          <!-- <arcgis-track position="top-left" id ="track" scale="5"></arcgis-track> -->
+          <button id="compassButton" style="display: none;">Compass is Off</button>
+          <button id="track">Tracking Off</button>
+          <arcgis-expand position="top-right" id="legend-expand">
+            <arcgis-legend id="legend">
+            </arcgis-legend>
+          </arcgis-expand>
+          <!-- <arcgis-search position="top-right" id="search"></arcgis-search> -->
+          
+      </arcgis-scene>
+    </div>
+  </div>
+
+  
+</body>
+<!-- App.js gets called after DOM -->
+<script type="module" src="app.js"></script>
+</html>
