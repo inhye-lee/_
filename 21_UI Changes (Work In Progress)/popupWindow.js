@@ -28,12 +28,18 @@ export function showPopup({
     }
 
     if (isCollapsed) {
+      //  max-height:40px; height:40px;
+      // <button id="popup-close" style="margin-left:8px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+      //       <img src="./assets/ui/CloseButton_sm.svg" alt="Close" style="width:30px; height:30px;">
+      //     </button>
+      // text-overflow:ellipsis;
       popup.innerHTML = `
-        <div class="title" style="display:flex; align-items:center; gap:8px; padding:12px; min-height:40px; max-height:40px; height:40px; margin-bottom: -8px; overflow:hidden;">
+        <div class="title" style="display:flex; align-items:center; gap:8px; padding:12px; min-height:40px; 
+        margin-bottom: 0px; overflow:hidden;">
           <span class="popup-halo-on-symbol">
-            <img width="32" height="32" src="${labelImage || ""}">
+            <img width="24" height="24" src="${labelImage || ""}">
           </span>
-          <h2 style="margin:0; font-size:16px; font-weight:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto;"><b>${title || ""}</b></h2>
+          
           <span style="flex:1"></span>
           <button id="popup-expand" style="margin-left:8px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
             <img src="./assets/ui/CollapseButton.svg" alt="Expand" style="width:30px; height:30px; transform:rotate(180deg); transition: transform 0.3s;">
@@ -41,8 +47,11 @@ export function showPopup({
           <button id="popup-close" style="margin-left:8px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;">
             <img src="./assets/ui/CloseButton_sm.svg" alt="Close" style="width:30px; height:30px;">
           </button>
+          
         </div>
+        <p class="popup-content"  style="padding:0 12px 12px 12px; margin:0; font-size:14px; font-weight:normal; white-space:wrap; overflow:hidden;  flex:1 1 auto;">${title || ""}</p>
       `;
+
     } else {
       popup.innerHTML = `
         <div class="title" style="display:flex; align-items:center; gap:8px; padding:12px;">

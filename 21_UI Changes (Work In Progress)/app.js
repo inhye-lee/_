@@ -757,6 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
   start();
   // Call Calibration Modal -> handle AR scene injection and orientation setup after calibration
   showCalibrationModal();
+
 });
 
 function enablePanelResizing() {
@@ -825,7 +826,7 @@ function enablePanelResizing() {
   };
 
   const maxProportion = 0.85; // 85% of window height
-  const minProportion = 0.15; // 15% of window height
+  const minProportion = 0.24; // 24% of window height
 
   const resize = (event) => {
     if (!isResizing) return;
@@ -882,7 +883,132 @@ function enablePanelResizing() {
   document.addEventListener('touchend', endResize);
 }
 
-let hasTrackedOnce = false; // Flag to ensure we only zoom once per activation
+const fullScreenToggleBtn = document.getElementById('fullscreen-toggle');
+const arContainer = document.getElementById('my-ar-container');
+const bottomContainer = document.getElementById('bottom-container');
+const resizer = document.getElementById('resizer');
+
+// 0: Split view, 1: AR fullscreen, 2: Map fullscreen
+let currentView = 0; // 0 = Split, 1 = Map Full, 2 = AR Full
+let lastHeights = { ar: null, map: null }; // Store last known heights
+let delayBetweenToggle = 250;
+
+fullScreenToggleBtn.addEventListener('click', (e) => {
+  setTimeout(() => {
+    toggleBetweenViews(); // Move view change here
+  }, delayBetweenToggle); // w/delay
+});
+
+// Toggle Between three views with Fades: Map Fullscreen, AR Fullscreen, and Split View 
+function toggleBetweenViews() {
+  const windowHeight = window.innerHeight;
+  const icon = document.getElementById('fullscreen-toggle-icon');
+  const controlContainer = document.getElementById('control-container');
+  let nextSrc;
+
+  // Fade out views
+  arContainer.classList.add('fade-out');
+  bottomContainer.classList.add('fade-out');
+
+  setTimeout(() => {
+    switch (currentView) {
+      case 0: // Map Fullscreen
+        lastHeights.ar = arContainer.offsetHeight;
+        lastHeights.map = bottomContainer.offsetHeight;
+        arContainer.style.display = 'none';
+        bottomContainer.style.display = 'block';
+        // Not sure why but 100vh makes the calcite buttons excluded
+        // Use 90vh for mobile, 100vh for desktop (Not perfect but works most of time)
+        if (window.innerWidth <= 768) {
+          bottomContainer.style.height = '90vh';
+        } else {
+          // bottomContainer.style.height = '100vh';
+           bottomContainer.style.height = '100dvh';
+        }
+        resizer.style.display = 'none'; // Hide resizer in Map Fullscreen
+        nextSrc = './assets/ui/ViewToggle-MapOnly-noShadow_Color.svg';
+        if (controlContainer) controlContainer.style.display = 'none'; // Hide controls
+
+        break;
+
+      case 1: // AR Fullscreen
+        bottomContainer.style.display = 'none';
+        arContainer.style.display = 'block';
+        arContainer.style.height = '100vh';
+        resizer.style.display = 'block';
+        nextSrc = './assets/ui/ViewToggle-AROnly-noShadow_Color.svg';
+        if (controlContainer) controlContainer.style.display = ''; // Show controls
+
+        break;
+
+      case 2: // Split View
+        arContainer.style.display = 'block';
+        bottomContainer.style.display = 'block';
+        resizer.style.display = 'flex';
+        const arHeight = lastHeights.ar || windowHeight / 2;
+        const mapHeight = lastHeights.map || windowHeight / 2;
+        arContainer.style.height = `${arHeight}px`;
+        bottomContainer.style.height = `${mapHeight}px`;
+        resizer.style.display = 'block';
+        nextSrc = './assets/ui/ViewToggle-SplitView-noShadow_Color.svg';
+        if (controlContainer) controlContainer.style.display = ''; // Show controls
+
+        break;
+    }
+
+    if (icon) icon.src = nextSrc;
+
+    // Fade in views
+    arContainer.classList.remove('fade-out');
+    bottomContainer.classList.remove('fade-out');
+
+    currentView = (currentView + 1) % 3;
+  }, delayBetweenToggle); // Match the fade-out duration
+}
+
+
+// Toggle Between three view - Without FADEs 
+// function toggleBetweenViews() {
+//   const windowHeight = window.innerHeight;
+//   const icon = document.getElementById('fullscreen-toggle-icon');
+//   let nextSrc;
+
+//   setTimeout(() => {
+//     switch (currentView) {
+//       case 0: // Map Fullscreen
+//         lastHeights.ar = arContainer.offsetHeight;
+//         lastHeights.map = bottomContainer.offsetHeight;
+//         arContainer.style.display = 'none';
+//         bottomContainer.style.display = 'block';
+//         bottomContainer.style.height = '100vh';
+//         nextSrc = './assets/ui/ViewToggle-MapOnly-noShadow_Color.svg';
+//         break;
+
+//       case 1: // AR Fullscreen
+//         bottomContainer.style.display = 'none';
+//         arContainer.style.display = 'block';
+//         arContainer.style.height = '100vh';
+//         nextSrc = './assets/ui/ViewToggle-AROnly-noShadow_Color.svg';
+//         break;
+
+//       case 2: // Split View
+//         arContainer.style.display = 'block';
+//         bottomContainer.style.display = 'block';
+//         resizer.style.display = 'flex';
+//         const arHeight = lastHeights.ar || windowHeight / 2;
+//         const mapHeight = lastHeights.map || windowHeight / 2;
+//         arContainer.style.height = `${arHeight}px`;
+//         bottomContainer.style.height = `${mapHeight}px`;
+//         nextSrc = './assets/ui/ViewToggle-SplitView-noShadow_Color.svg';
+//         break;
+//     }
+
+//     if (icon) icon.src = nextSrc;
+
+//     // Fade in new views
+//     currentView = (currentView + 1) % 3;
+//   }, delayBetweenToggle); // Match the fade-out duration
+// }
 
 function initSceneView() {
   require([
@@ -2493,6 +2619,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const compassButton = document.getElementById('compassButton');
   const toggleView = document.getElementById('toggleView');
   const trackButton = document.getElementById('track');
+  const fullscreenToggleBtn = document.getElementById('fullscreen-toggle');
   
   if (expand) {
     const observer = new MutationObserver(() => {
@@ -2503,6 +2630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (trackButton && isTracking) trackButton.style.display = 'none'; // Hide track button when legend is expanded
         if (trackButton && !isTracking) trackButton.style.display = 'none';
         if (isCompassActive) trackButton.style.display = 'none';
+        if (fullscreenToggleBtn) fullscreenToggleBtn.style.display = 'none';
         // POP UP GOES INVISIBLE
         // Adding the pop up container info here, as it's not available in the initial DOM load
         const popUpContainer = document.getElementById('popup-container');
@@ -2513,9 +2641,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         // Only show compassButton if it should be visible per app logic
         updateCompassButtonState();
-        if (toggleView) toggleView.style.display = '';
+        if (toggleView && !isCompassActive) toggleView.style.display = ''; // Only show toggleView if compass is not active
         if (trackButton) trackButton.style.display = ''; // Show Unless compass is active
         if (isCompassActive) trackButton.style.display = 'none'; // Hide track button when compass is active
+        if (fullscreenToggleBtn) fullscreenToggleBtn.style.display = '';
         // POP UP GOES VISIBLE AGAIN, if it's available in DOM
         const popUpContainer = document.getElementById('popup-container');
         if (popUpContainer) {

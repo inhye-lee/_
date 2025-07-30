@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -15,13 +14,11 @@
   <!-- New ar js script: changing gps-entity-place to gps-new-entity-place -->
   <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/three.js/build/ar-threex-location-only.js'></script>
   <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js'></script>
-
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
   <!-- GeoDesic Calculation -->
   <script src="https://cdn.jsdelivr.net/npm/geographiclib@1.52.2/geographiclib.min.js"></script>
   <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.32/"></script>
-
   <!-- Lottie Animation -->
   <script src="https://cdn.lottielab.com/s/lottie-player@1.x/player-web.min.js"></script>
   <!-- Load Map components from CDN-->
@@ -34,18 +31,23 @@
       font-weight: 400;
       font-style: normal;
     }
-
     @font-face {
       font-family: "Roboto";
       src: url('./assets/font/Roboto/Roboto-VariableFont_wdth,wght.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
     }
-
     body {
       margin: 0;
       overflow: hidden;
       padding: 10px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
     }
 
     #control-container {
@@ -61,18 +63,15 @@
       left: 10px;
       right: 10px;
     }
-
     #control-container > * { /*child elements*/
       width: 100%;
       box-sizing: border-box; /* Prevents overflow from padding */
       margin-bottom: 8px;     /* Optional: space between rows */
     }
-
     #toggleGPSButton {
       background-color: #9500ff;
       width: 100px;
     }
-
     button {
       flex-shrink: 0;
       color: white; /* White text */
@@ -83,15 +82,72 @@
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
       transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth hover effect */
     }
-
     button:hover {
       background-color: #0056b3; /* Darker blue on hover */
       /* transform: translateY(-2px); Slight lift on hover */
     }
-
     button:active {
       background-color: #004085; /* Even darker blue on click */
       /* transform: translateY(0); Reset lift on click */
+  }
+
+  button#fullscreen-toggle {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 20px; /* Adjust this value to be just above your collapsed popup (e.g., popup height + margin) */
+    z-index: 999;
+    background: none;
+    color: none;
+    border: none;
+    border-radius: 30px;
+    padding: 0;
+    font-size: 1em;
+    cursor: pointer;
+    /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
+      box-shadow:
+    0 6px 24px rgba(0,0,0,0.25),
+    0 2px 8px rgba(0,0,0,0.18),
+    0 1.5px 0px rgba(255,255,255,0.12) inset;
+  }
+
+  button#fullscreen-toggle  {
+    transition: opacity 0.25s ease-in-out, transform 0.25s ease;
+    opacity: 1;
+  }
+
+  button#fullscreen-toggle :hover {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  button#fullscreen-toggle :active {
+    opacity: 0.75;
+    transform: scale(1.125);
+  }
+
+  button#fullscreen-togglen img {
+    transition: opacity 0.25s ease-in-out;
+  }
+
+  button#fullscreen-toggle img.fade-out {
+    opacity: 0;
+  }
+
+  button#fullscreen-toggle img.fade-in {
+    opacity: 1;
+  }
+
+
+  /* Fade transitions for AR & Bottom containers (class added to both) */
+  .view-container {
+    opacity: 1;
+    transition: opacity 0.25s ease-in-out;
+  }
+
+  .view-container.fade-out {
+    opacity: 0;
+    pointer-events: none;
   }
 
     /* Or, target just the toggle button */
@@ -99,7 +155,6 @@
       background-color: #007bff;
       color: white;
     }
-
     #slider-container {
       display: flex;
       align-items: center;
@@ -109,20 +164,16 @@
       border-radius: 8px;
       flex-grow: 1;
     }
-
     #distanceSlider {
       width: 100%;
       /* margin-right: 10px; */
     }
-
     #distanceValue {
       white-space: nowrap;
     }
-
     #poi-counter {
       display: inline;
     }
-
     #loadingIndicator {
       position: absolute;
       top: 25%;
@@ -140,7 +191,6 @@
       width: max-content;
       max-width: 90vw;  
     }
-
     #calibration-modal {
       display:none; 
       position:fixed; 
@@ -156,7 +206,6 @@
       justify-content:center; 
       margin:auto;
     }
-
     #calibration-modal, #calibration-modal * {
       font-family: "Roboto", Arial, sans-serif !important;
       color:#fff; 
@@ -177,7 +226,6 @@
       margin-right: auto;
       max-width: 300px; 
     }
-
     .calibration-instructions {
       text-align: left;
       background: rgba(0,0,0,0.45);
@@ -186,12 +234,10 @@
       margin-top: 12px;
       margin-bottom: 8px;
     }
-
     .calibrate-pulse {
       animation: pulseCalibrate 3s infinite;
       display: inline-block;
     }
-
     @keyframes pulseCalibrate {
       0% {
         transform: scale(1);
@@ -203,7 +249,6 @@
         transform: scale(1);
       }
     }
-
     #manual-heading-message {
       display: none;
       position: fixed;
@@ -220,7 +265,6 @@
       max-width: calc(100vw - 16px); /* 16px margin on each side */
       min-width: 85%;
     }
-
     #manual-heading-message .button-text {
       /* background:#007bff;  */
       color:#007bff; 
@@ -230,7 +274,6 @@
       /* font-size:0.95em;  */
       margin:0 2px;
     }
-
     #manual-heading-yes {
       background: #007bff;
       color: #fff;
@@ -239,7 +282,6 @@
       border-radius: 6px;
       cursor: pointer;
     }
-
     #orientation-indicator {
       display: none;  /*Initially Hidden */
       align-items: center;
@@ -248,13 +290,11 @@
       padding: 6px;
       border-radius: 8px;
     }
-
     #toggle-heading-adjust {
       background-color: #007bff;
       color: white;
       margin-left: auto;
     }
-
     @keyframes pulse {
       0% {
         transform: translateX(-50%) scale(1);
@@ -266,7 +306,6 @@
         transform: translateX(-50%) scale(1);
       }
     }
-
     #debug-overlay {
       position: absolute;
       top: -200px;  /*Hidden for presentation document*/
@@ -279,7 +318,6 @@
       border-radius: 5px;
       z-index: 1000; /* Ensure it's on top */
     }
-
     #my-ar-container {
       position: absolute;
       top: 0;
@@ -288,7 +326,6 @@
       width: 100%;
       overflow: hidden;
     }
-
     #bottom-container {
       position: absolute;
       bottom: 0;
@@ -299,6 +336,12 @@
       z-index: 10;
       display: flex;
       flex-direction: column;
+    }
+
+    #my-ar-container,
+    #bottom-container {
+      transform: none !important;
+      zoom: 1 !important;
     }
 
     #resizer {
@@ -313,36 +356,30 @@
       cursor: ns-resize;
       z-index: 11;
     }
-
     #map {
       flex: 1;
       width: 100%;
       background: #fff;
     }
-
     #viewDiv {
         width: 100%;
         height: 100%;
         margin: 0;
         padding: 0;
     }
-
     #viewDiv, arcgis-scene {
     position: relative;
   }
-
     #cityStyle {
       /* background-color: white; */
       text-align: center;
       padding: 10px;
       font-size: 0.9em;
     }
-
     #cityStyle label {
       padding-right: 10px;
       cursor: pointer;
     }
-
     #infoDiv {
       position: absolute;
       top: 50%;
@@ -352,7 +389,6 @@
       background: rgba(255, 255, 255, 0.8);
       /* z-index: 10; */
     }
-
     #locationButtons {
       position: absolute;
       width: auto;
@@ -363,11 +399,9 @@
       gap: 10px;
       z-index: 10;
     }
-
     .locationButton {
       flex:1;
     }
-
     #filterDiv {
       /* position: absolute;
       bottom: 150px; */
@@ -377,31 +411,17 @@
       border-radius: 5px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-
     .esri-expand__panel-content, 
     .esri-legend,
       .arcgis-legend,
       .arcgis-expand {
         z-index: 2000 !important;
     }
-
     calcite-button {
       /* z-index: 10; */
       /* position: absolute; */
       /* set bottom/left/right as needed */
     }
-    /* #toggleView {
-      position: absolute;
-      left: 0px;
-      top: 10px;
-      z-index: 1001;
-      border-radius: 6px;
-      margin: 0;
-      padding: 8px 16px;
-      font-size: 1em;
-      cursor: pointer;
-      border: none;
-    } */
 
     #toggleView, #track, #compassButton {
       font-size: 0.85em; 
@@ -421,26 +441,21 @@
       justify-content: center;
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
-
     #toggleView {
       top: 14px;
+      /* bottom: 112px; */
       /* box-shadow: none; */
-      border-radius: 20px;
-      /* border:#007ACe;
-      background-color: #007ACe; */
-      border: #007bff;
-      background-color: #007bff;
-      color: #fff; /*text */
+      border-radius: 2px;
+      border: 1px solid #d1d1d1;
+      background-color: #f8f8f8;
+      color: #151515; /*text */
     }
-
     #track {
       bottom: 24px;  
     }
-
     #compassButton {
       bottom: 68px; /* Place above the track button */
     }
-
     #toggleView calcite-icon,
     #track calcite-icon,
     #compassButton calcite-icon {
@@ -448,7 +463,6 @@
       padding: 0;
       vertical-align: middle;
     }
-
   /* Keyframe animation for pulsing effect */
   @keyframes comPulse {
     0% {
@@ -461,9 +475,7 @@
       transform: scale(1);
     }
   }
-
    /*pop up*/
-
 .popup-grab-handle {
   width: 40px;
   height: 4px;
@@ -475,7 +487,6 @@
   border-radius: 4px;
   margin: 0;
   }
-
 #popup-container {
   position: fixed;
   top: auto; /* Allow positioning at the bottom */
@@ -500,11 +511,25 @@
   transition: height 0.2s cubic-bezier(.4,0,.2,1);
   display: block;
 }
+/* #popup-container.collapsed { */
+  /* max-height: 60px; */
+  /* width: 70%; */
+  /* left: 30%; */
+  /*Put it in the middle*/
+  /* left:50%;
+  transform: translateX(-50%); */
+/* } */
+
 #popup-container.collapsed {
-  max-height: 80px;
-  width: 70%;
-  left: 30%;
+  /* max-height: 60px; */
+  border-radius: 20p;
+  width: 42%;
+  left: auto;
+  right: 0;
+  transform: none;
+  padding: 0 2px 2px 2px; /* No top padding, keep sides/bottom */
 }
+
   /* Adjust for mobile devices */
   @media (max-width: 768px) {
     #popup-container {
@@ -512,7 +537,6 @@
       max-height: 60%; /* Increase height slightly for mobile */
     }
   }
-
   /* Style for the pop-up title */
   #popup-container.title {
     display: flex;
@@ -520,7 +544,6 @@
     align-items: flex-start;
     flex: 1 0 0;
   }
-
   #popup-container h2 {
     color: #000;
     font-size: 18px;
@@ -528,7 +551,6 @@
     font-weight: 700;
     line-height: normal;
   }
-
   .title2 {
     color: #000;
     font-size: 16px;
@@ -536,7 +558,6 @@
     font-weight: 400;
     line-height: normal;
   }
-
   /* Style for the pop-up content */
   #popup-container p {
     font-size: 16px;
@@ -545,7 +566,6 @@
     line-height: 150%; /* 24px */
     color: var(--Grey-5, #696969);
   }
-
   /* Style for the close button */
   #popup-close, #popup-collapse, #popup-expand {
     display: block;
@@ -558,19 +578,16 @@
     transition: background-color 0.3s ease;
     background: var(--fill-tertiary, rgba(118, 118, 128, 0.12));
   }
-
   /* Hover effect for the close button */
   #popup-close:hover, #popup-collapse:hover, #popup-expand:hover {
     background-color: #0056b3; /* Darker blue on hover */
   }
-
   /*Tapped POI Style*/
   .halo {
   box-shadow: 0 0 20px 5px rgba(0, 123, 255, 0.8); /* Blue glow */
   border-radius: 50%; /* Make it circular */
   transition: box-shadow 0.3s ease; /* Smooth transition */
 }
-
 .popup-halo-on-symbol {
   display: flex;
   align-items: center;
@@ -584,18 +601,15 @@
   /* opacity: 0.6;  */
   /* Set halo opacity (0 = transparent, 1 = opaque) */
 }
-
 .popup-halo-on-symbol img {
   display: block;
   width: 32px;
   height: 32px;
   object-fit: contain;
 }
-
 /* =========================
    Consolidated Z-INDEX MANAGEMENT
    ========================= */
-
     #calibration-modal,
     .esri-expand__panel-content,
     .esri-legend,
@@ -603,51 +617,49 @@
     .arcgis-expand {
       z-index: 2000 !important;
     }
-
     #loadingIndicator {
       z-index: 1002;
     }
-
     #toggleView,
     #track,
     #compassButton {
       z-index: 1001;
     }
-
     #control-container,
     #popup-container,
     #debug-overlay {
       z-index: 1000;
     }
-
     #resizer {
       z-index: 11;
     }
-
     #bottom-container,
     #locationButtons {
       z-index: 10;
     }
   </style>
 </head>
-
 <body>
-
   <script type="module" src="./popupWindow.js"></script> <!-- Pop Up Window -->
   <script src="./websceneCameraControl.js"></script> <!-- WebScene Camera Control -->
   <script type="module" src="./aframe-component.js"></script> <!-- Aframe Components -->
-  <div id="my-ar-container"></div>
+  
+  <button id="fullscreen-toggle">
+    <img id="fullscreen-toggle-icon" 
+    src="./assets/ui/ViewToggle-SplitView-noShadow_Color.svg" 
+    alt="Toggle View" 
+    style="width: 60px; height: 60px; vertical-align: middle;">
+  </button>
+  <div id="my-ar-container" class="view-container"></div>
   <div id="debug-overlay">Fetching..</div>
   <!-- Calibration Modal -->
   <div id="calibration-modal">
     <div id ="calibration-modal-bg">
     <h2 class="calibrate-pulse">Calibrate your compass</h2> 
-
       <div style=" align-items:center; justify-content:center;">
         <lottie-player src="./assets/animation/CalibrationGuide.json" loop autoplay>
         </lottie-player>
       </div>     
-
       <div class="calibration-instructions">1. Hold the phone flat in your hand, screen facing up.<br>
         2. Imagine drawing a figure "8" or infinity symbol with your phone.<br>
         3. Repeat the motion 3 to 5 times.<br> 
@@ -668,7 +680,6 @@
       <button id="manual-heading-yes">I understand</button>
     </div>
   </div>
-
   <div id="control-container">
     <!-- <button id="toggleGPSButton">Use Raw GPS</button> -->
     <div id="slider-container">
@@ -676,7 +687,6 @@
       <input type="range" id="distanceSlider" min="1000" max="10000" value="3000" step="100">
       <span id="distanceValue">3000m</span><span>&nbsp;</span></span><span id="poi-counter"></span> 
     </div>
-
     <div id="orientation-indicator">
       <span id="orientation-mode">Checking Orientation...</span>
       <span id="compass-reliability"></span> 
@@ -695,18 +705,16 @@
   </div>
  
   <!-- <a-scene> will be added here after Initial Compass Calibration -->
-
-  <div id="bottom-container">
+  <div id="bottom-container" class="view-container">
     <div id="resizer"></div>
     <div id="viewDiv">
       
       <arcgis-scene id="scene">
-          
+        
           <!-- Toggle Views Button-->
           <button id="toggleView">
             <calcite-icon icon="2d" scale="m"/>
           </button>
-
           <!-- Compass And Track Buttons -->
           <button id="compassButton" style="display: none;">
             <calcite-icon icon="compass-needle" scale="m"></calcite-icon>
@@ -714,7 +722,6 @@
           <button id="track">
             <calcite-icon icon="gps-on" scale="m"></calcite-icon>
           </button>
-
           <arcgis-expand position="top-right" id="legend-expand">
             <arcgis-legend id="legend">
             </arcgis-legend>
@@ -724,7 +731,6 @@
       </arcgis-scene>
     </div>
   </div>
-
   
 </body>
 <!-- App.js gets called after DOM -->
